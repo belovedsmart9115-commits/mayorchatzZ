@@ -1,15 +1,20 @@
 {
-  "name": "Mayor ChatzZ",
-  "short_name": "MayorChat",
+  "name": "MayorChatzZ",
+  "short_name": "MayorChatzZ",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#111b21",
+  "theme_color": "#00a884",
   "icons": [
     {
-      "src": "icon.png",
+      "src": "/icon.png?v=2",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon.png?v=2",
       "sizes": "512x512",
       "type": "image/png"
     }
-  ],
-  "start_url": "/",
-  "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#000000"
+  ]
 }
