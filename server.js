@@ -1,1 +1,57 @@
-const http=require('http');const fs=require('fs');const path=require('path');let messages=[{user:'Mayor',text:'Welcome to MayorchatZ 👑'}];let users=[];try{if(fs.existsSync('users.json'))users=JSON.parse(fs.readFileSync('users.json','utf8'))}catch(e){}const mime={'.html':'text/html','.js':'text/javascript','.json':'application/json','.png':'image/png'};const server=http.createServer((req,res)=>{if(req.url==='/api/messages'&&req.method==='GET'){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify(messages))}if(req.url==='/api/messages'&&req.method==='POST'){let b='';req.on('data',c=>b+=c);req.on('end',()=>{try{let d=JSON.parse(b);messages.push({user:d.user||'User',text:d.text,time:Date.now()});if(messages.length>100)messages.shift()}catch(e){}res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({ok:true}))});return}if(req.url==='/api/signup'&&req.method==='POST'){let b='';req.on('data',c=>b+=c);req.on('end',()=>{let {name,phone,password}=JSON.parse(b);if(!name||!phone||!password){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({error:'Fill all'}))}if(users.find(u=>u.phone===phone)){res.writeHead(200,{'Content-Type':'application/json'});return res.end(JSON.stringify({error:'Phone don exist'}))}let user={id:Date.now(),name,phone,password};users.push(user);fs.writeFileSync('users.json',JSON.stringify(users));res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({ok:true,user}))});return}if(req.url==='/api/login'&&req.method==='POST'){let b='';req.on('data',c=>b+=c);req.on('end',()=>{let {phone,password}=JSON.parse(b);let user=users.find(u=>u.phone===phone&&u.password===password);res.writeHead(200,{'Content-Type':'application/json'});if(!user)return res.end(JSON.stringify({error:'Wrong phone or password'}));res.end(JSON.stringify({ok:true,user}))});return}let fp=path.join(__dirname,'public',req.url==='/'?'index.html':req.url);if(!fs.existsSync(fp)||fs.statSync(fp).isDirectory())fp=path.join(__dirname,'public','index.html');let ext=path.extname(fp);if(fs.existsSync(fp)){res.writeHead(200,{'Content-Type':mime[ext]||'text/plain'});return res.end(fs.readFileSync(fp))}res.writeHead(404);res.end('Not found')});let PORT=process.env.PORT||10000;server.listen(PORT,()=>console.log('MayorchatZ running on '+PORT));
+const express = require('express');
+const path = require('path');
+const fs = require('fs');
+const app = express();
+const PORT = process.env.PORT || 10000;
+
+app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
+
+const MF = path.join(__dirname, 'messages.json');
+const UF = path.join(__dirname, 'users.json');
+
+function readJ(f,d){
+  try{
+    if(!fs.existsSync(f)) return d;
+    return JSON.parse(fs.readFileSync(f,'utf8'));
+  }catch(e){ return d; }
+}
+function writeJ(f,d){
+  fs.writeFileSync(f, JSON.stringify(d,null,2));
+}
+
+app.get('/api/messages',(req,res)=>{
+  res.json(readJ(MF,[]));
+});
+
+app.post('/api/messages',(req,res)=>{
+  const {user,text,time}=req.body;
+  const m=readJ(MF,[]);
+  m.push({user,text,time: time || new Date().toLocaleTimeString()});
+  if(m.length>500) m.shift();
+  writeJ(MF,m);
+  res.json({ok:true});
+});
+
+app.post('/api/signup',(req,res)=>{
+  const {name,phone,password}=req.body;
+  let u=readJ(UF,[]);
+  if(u.find(x=>x.phone===phone)) return res.status(400).json({error:'exists'});
+  u.push({name,phone,password});
+  writeJ(UF,u);
+  res.json({ok:true});
+});
+
+app.post('/api/login',(req,res)=>{
+  const {phone,password}=req.body;
+  let u=readJ(UF,[]);
+  let user=u.find(x=>x.phone===phone && x.password===password);
+  if(!user) return res.status(400).json({error:'wrong'});
+  res.json({ok:true, name:user.name});
+});
+
+app.get('*',(req,res)=>{
+  res.sendFile(path.join(__dirname,'public','index.html'));
+});
+
+app.listen(PORT,()=> console.log('MayorchatZ live on '+PORT));
