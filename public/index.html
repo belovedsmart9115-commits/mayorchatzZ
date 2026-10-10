@@ -44,27 +44,27 @@ a{color:#25D366}
 <button onclick="sendMsg()">Send</button>
 </div></div>
 <script>
-let isLogin=false;let currentUser=localStorage.getItem('mayorUser');let currentAvatar=localStorage.getItem('mayorAvatar')||'👤';
+let isLogin=false;let currentUser=localStorage.getItem('mayorUser');let currentAvatar=localStorage.getItem('mayorAvatar')||'👤';let lastMsgCount=0;
+function askNotif(){if(Notification&&Notification.permission!=='granted'){Notification.requestPermission();}}
+askNotif();
 function checkAuth(){if(currentUser){document.getElementById('auth').style.display='none';document.getElementById('chat').style.display='flex';document.getElementById('logout').style.display='block';document.getElementById('share').style.display='block';loadMsgs();loadUsers();}}
 checkAuth();
 function toggleForm(){isLogin=!isLogin;document.getElementById('formTitle').innerText=isLogin?'Login':'Signup';document.getElementById('authBtn').innerText=isLogin?'Login':'Signup';document.getElementById('toggleText').innerText=isLogin?"Don't have account?":"Already have account?";document.getElementById('name').style.display=isLogin?'none':'block';document.getElementById('avatar').style.display=isLogin?'none':'block';}
 async function doAuth(){
-let name=document.getElementById('name').value.trim();
-let avatar=document.getElementById('avatar').value;
-let phone=document.getElementById('phone').value.trim();
-let password=document.getElementById('pass').value.trim();
+let name=document.getElementById('name').value.trim();let avatar=document.getElementById('avatar').value;let phone=document.getElementById('phone').value.trim();let password=document.getElementById('pass').value.trim();
 if(!phone||!password||(!isLogin&&!name))return alert('Fill all fields');
-let url=isLogin?'/api/login':'/api/signup';
-let body=isLogin?{phone,password}:{name,phone,password,avatar};
-let res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-let data=await res.json();
+let url=isLogin?'/api/login':'/api/signup';let body=isLogin?{phone,password}:{name,phone,password,avatar};
+let res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});let data=await res.json();
 if(data.error)return alert(data.error=='exists'?'Phone already exists':'Wrong phone or password');
-localStorage.setItem('mayorUser',isLogin?data.name:name);
-localStorage.setItem('mayorAvatar',isLogin?data.avatar:avatar);
-location.reload();
+localStorage.setItem('mayorUser',isLogin?data.name:name);localStorage.setItem('mayorAvatar',isLogin?data.avatar:avatar);location.reload();
 }
 async function loadMsgs(){
 let res=await fetch('/api/messages');let msgs=await res.json();
+if(msgs.length>lastMsgCount && lastMsgCount!==0){
+let newMsgs=msgs.slice(lastMsgCount);
+newMsgs.forEach(m=>{if(m.user!==currentUser){if(Notification&&Notification.permission==='granted'){new Notification(m.user+' 🔥',{body:m.text,icon:'https://cdn-icons-png.flaticon.com/512/733/733585.png'});}let audio=new Audio('https://notificationsounds.com/storage/sounds/file-sounds-1150-pristine.mp3');audio.play().catch(()=>{});if(navigator.vibrate)navigator.vibrate(200);}});
+}
+lastMsgCount=msgs.length;
 let box=document.getElementById('msgs');box.innerHTML='';
 msgs.forEach(m=>{
 let d=document.createElement('div');d.className='msg '+(m.user===currentUser?'me':'other');
@@ -73,21 +73,10 @@ d.innerHTML=`<b>${m.avatar||'👤'} ${m.user}</b><br>${m.text} ${canDel}<br><sma
 box.appendChild(d);
 });box.scrollTop=box.scrollHeight;
 }
-async function loadUsers(){
-let res=await fetch('/api/users');let users=await res.json();
-document.getElementById('online').innerHTML='Online: '+users.map(u=>`${u.avatar} ${u.name}`).join(' • ')||'Only you';
-}
+async function loadUsers(){let res=await fetch('/api/users');let users=await res.json();document.getElementById('online').innerHTML='Online: '+users.map(u=>`${u.avatar} ${u.name}`).join(' • ')||'Only you';}
 async function sendTyping(){await fetch('/api/typing',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:currentUser})});}
-async function checkTyping(){
-let res=await fetch('/api/typing');let users=await res.json();
-let others=users.filter(u=>u!==currentUser);
-document.getElementById('typing').innerText=others.length?`${others.join(', ')} typing...`:'';
-}
-async function sendMsg(){
-let text=document.getElementById('msgInput').value.trim();if(!text)return;
-await fetch('/api/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:currentUser,text,avatar:currentAvatar})});
-document.getElementById('msgInput').value='';loadMsgs();
-}
+async function checkTyping(){let res=await fetch('/api/typing');let users=await res.json();let others=users.filter(u=>u!==currentUser);document.getElementById('typing').innerText=others.length?`${others.join(', ')} typing...`:'';}
+async function sendMsg(){let text=document.getElementById('msgInput').value.trim();if(!text)return;await fetch('/api/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:currentUser,text,avatar:currentAvatar})});document.getElementById('msgInput').value='';loadMsgs();}
 async function delMsg(id){if(!confirm('Delete this message?'))return;await fetch('/api/messages/'+id,{method:'DELETE'});loadMsgs();}
 function logout(){localStorage.removeItem('mayorUser');localStorage.removeItem('mayorAvatar');location.reload();}
 function shareLink(){let link='https://mayorchatzZ.onrender.com';if(navigator.share){navigator.share({title:'Join MayorchatzZ',url:link});}else{navigator.clipboard.writeText(link);alert('Link copied! '+link);}}
