@@ -1,84 +1,95 @@
-<!DOCTYPE html>
-<html>
-<head>
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MayorchatzZ</title>
-<style>
+<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>MayorchatzZ Ultra</title><style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
 body{background:#111;color:#fff}
-header{background:#075E54;padding:12px 15px;display:flex;justify-content:space-between;align-items:center;font-weight:bold}
-#logout{background:#f15a29;border:none;padding:6px 12px;border-radius:5px;color:#fff;font-weight:bold}
-#auth{padding:25px}
-input{width:100%;padding:13px;margin:8px 0;border-radius:10px;border:none;font-size:15px}
-button.main{width:100%;padding:13px;background:#25D366;border:none;border-radius:10px;font-weight:bold;color:#000;font-size:16px;margin-top:10px}
+header{background:#075E54;padding:12px 15px;display:flex;justify-content:space-between;align-items:center}
+header b{font-size:18px}
+#hBtns{display:flex;gap:8px}
+#hBtns button{border:none;padding:6px 12px;border-radius:6px;font-weight:bold;color:#fff;cursor:pointer}
+#share{background:#25D366;color:#000!important}
+#logout{background:#f15a29}
+#auth{padding:25px;max-width:400px;margin:auto}
+input,select{width:100%;padding:13px;margin:8px 0;border-radius:10px;border:none;font-size:15px}
+button.main{width:100%;padding:13px;background:#25D366;border:none;border-radius:10px;font-weight:bold;font-size:16px;margin-top:10px;color:#000}
 #chat{display:none;flex-direction:column;height:calc(100vh - 52px)}
+#online{font-size:13px;padding:8px 15px;background:#202c33;border-bottom:1px solid #333;display:flex;gap:6px;flex-wrap:wrap}
 #msgs{flex:1;overflow-y:auto;padding:15px;background:#0b141a}
-.msg{margin:8px 0;padding:10px 14px;border-radius:10px;max-width:80%;word-break:break-word}
+.msg{margin:8px 0;padding:10px 14px;border-radius:10px;max-width:80%;word-break:break-word;position:relative}
 .me{background:#005c4b;margin-left:auto}
 .other{background:#202c33}
+.msg b{font-size:13px}
+#typing{font-size:12px;color:#25D366;padding:2px 15px;height:18px}
 #inputArea{display:flex;padding:10px;background:#202c33;gap:8px}
 #inputArea input{flex:1;margin:0}
 #inputArea button{width:75px;background:#25D366;border:none;border-radius:8px;font-weight:bold}
-#online{font-size:13px;padding:8px 15px;background:#202c33;border-bottom:1px solid #333}
-a{color:#25D366}
 small{font-size:11px;opacity:.6}
-</style>
-</head>
-<body>
-<header><span>MayorchatzZ 🔥</span><button id="logout" onclick="logout()" style="display:none">Logout</button></header>
+.del{font-size:10px;color:#ff8a65;cursor:pointer;margin-left:8px}
+a{color:#25D366}
+</style></head><body>
+<header><b>MayorchatzZ 🔥</b><div id="hBtns"><button id="share" onclick="shareLink()" style="display:none">Share</button><button id="logout" onclick="logout()" style="display:none">Logout</button></div></header>
 <div id="auth">
 <h2 id="formTitle" style="margin-bottom:15px">Create Account</h2>
 <input id="name" placeholder="Your Name">
+<select id="avatar"><option>👤</option><option>😎</option><option>🔥</option><option>👑</option><option>💀</option><option>😍</option><option>🚀</option><option>🎮</option><option>👩‍💻</option><option>👨‍💻</option></select>
 <input id="phone" placeholder="Phone Number">
 <input id="pass" type="password" placeholder="Password">
 <button class="main" onclick="doAuth()" id="authBtn">Signup</button>
 <p style="margin-top:15px;text-align:center"><span id="toggleText">Already have account?</span> <a href="#" onclick="toggleForm()">Login</a></p>
 </div>
 <div id="chat">
-<div id="online">Loading online...</div>
+<div id="online">Loading...</div>
 <div id="msgs"></div>
+<div id="typing"></div>
 <div id="inputArea">
-<input id="msgInput" placeholder="Type a message..." onkeypress="if(event.key==='Enter')sendMsg()">
+<input id="msgInput" placeholder="Type a message..." oninput="sendTyping()" onkeypress="if(event.key==='Enter')sendMsg()">
 <button onclick="sendMsg()">Send</button>
-</div>
-</div>
+</div></div>
 <script>
-let isLogin=false;let currentUser=localStorage.getItem('mayorUser');
-function checkAuth(){if(currentUser){document.getElementById('auth').style.display='none';document.getElementById('chat').style.display='flex';document.getElementById('logout').style.display='block';loadMsgs();loadUsers();}}
+let isLogin=false;let currentUser=localStorage.getItem('mayorUser');let currentAvatar=localStorage.getItem('mayorAvatar')||'👤';
+function checkAuth(){if(currentUser){document.getElementById('auth').style.display='none';document.getElementById('chat').style.display='flex';document.getElementById('logout').style.display='block';document.getElementById('share').style.display='block';loadMsgs();loadUsers();}}
 checkAuth();
-function toggleForm(){isLogin=!isLogin;document.getElementById('formTitle').innerText=isLogin?'Login':'Signup';document.getElementById('authBtn').innerText=isLogin?'Login':'Signup';document.getElementById('toggleText').innerText=isLogin?"Don't have account?":"Already have account?";document.getElementById('name').style.display=isLogin?'none':'block';}
+function toggleForm(){isLogin=!isLogin;document.getElementById('formTitle').innerText=isLogin?'Login':'Signup';document.getElementById('authBtn').innerText=isLogin?'Login':'Signup';document.getElementById('toggleText').innerText=isLogin?"Don't have account?":"Already have account?";document.getElementById('name').style.display=isLogin?'none':'block';document.getElementById('avatar').style.display=isLogin?'none':'block';}
 async function doAuth(){
 let name=document.getElementById('name').value.trim();
+let avatar=document.getElementById('avatar').value;
 let phone=document.getElementById('phone').value.trim();
 let password=document.getElementById('pass').value.trim();
 if(!phone||!password||(!isLogin&&!name))return alert('Fill all fields');
 let url=isLogin?'/api/login':'/api/signup';
-let body=isLogin?{phone,password}:{name,phone,password};
+let body=isLogin?{phone,password}:{name,phone,password,avatar};
 let res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
 let data=await res.json();
 if(data.error)return alert(data.error=='exists'?'Phone already exists':'Wrong phone or password');
-localStorage.setItem('mayorUser',isLogin?data.name:name);location.reload();
+localStorage.setItem('mayorUser',isLogin?data.name:name);
+localStorage.setItem('mayorAvatar',isLogin?data.avatar:avatar);
+location.reload();
 }
 async function loadMsgs(){
 let res=await fetch('/api/messages');let msgs=await res.json();
 let box=document.getElementById('msgs');box.innerHTML='';
 msgs.forEach(m=>{
 let d=document.createElement('div');d.className='msg '+(m.user===currentUser?'me':'other');
-d.innerHTML=`<b>${m.user}</b><br>${m.text}<br><small>${m.time}</small>`;
+let canDel=m.user===currentUser?`<span class="del" onclick="delMsg('${m.id}')">[delete]</span>`:'';
+d.innerHTML=`<b>${m.avatar||'👤'} ${m.user}</b><br>${m.text} ${canDel}<br><small>${m.time}</small>`;
 box.appendChild(d);
 });box.scrollTop=box.scrollHeight;
 }
 async function loadUsers(){
 let res=await fetch('/api/users');let users=await res.json();
-document.getElementById('online').innerText='Online: '+(users.map(u=>u.name).join(', ')||'Only you');
+document.getElementById('online').innerHTML='Online: '+users.map(u=>`${u.avatar} ${u.name}`).join(' • ')||'Only you';
+}
+async function sendTyping(){await fetch('/api/typing',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:currentUser})});}
+async function checkTyping(){
+let res=await fetch('/api/typing');let users=await res.json();
+let others=users.filter(u=>u!==currentUser);
+document.getElementById('typing').innerText=others.length?`${others.join(', ')} typing...`:'';
 }
 async function sendMsg(){
 let text=document.getElementById('msgInput').value.trim();if(!text)return;
-await fetch('/api/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:currentUser,text})});
+await fetch('/api/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:currentUser,text,avatar:currentAvatar})});
 document.getElementById('msgInput').value='';loadMsgs();
 }
-function logout(){localStorage.removeItem('mayorUser');location.reload();}
-setInterval(()=>{if(currentUser){loadMsgs();loadUsers();}},3000);
-</script>
-</body>
-  </html>
+async function delMsg(id){if(!confirm('Delete this message?'))return;await fetch('/api/messages/'+id,{method:'DELETE'});loadMsgs();}
+function logout(){localStorage.removeItem('mayorUser');localStorage.removeItem('mayorAvatar');location.reload();}
+function shareLink(){let link='https://mayorchatzZ.onrender.com';if(navigator.share){navigator.share({title:'Join MayorchatzZ',url:link});}else{navigator.clipboard.writeText(link);alert('Link copied! '+link);}}
+setInterval(()=>{if(currentUser){loadMsgs();loadUsers();checkTyping();}},2000);
+</script></body></html>
