@@ -1,111 +1,108 @@
-<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>MayorchatzZ PRO STATUS</title><style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
-body{background:#111;color:#fff}
-header{background:#075E54;padding:10px;display:flex;justify-content:space-between;align-items:center}
-button{border:none;padding:6px 10px;border-radius:6px;font-weight:bold;cursor:pointer}
-#auth{padding:25px;max-width:400px;margin:auto}
-input,select{width:100%;padding:11px;margin:6px 0;border-radius:10px;border:none}
-button.main{width:100%;padding:13px;background:#25D366;color:#000;font-size:16px;margin-top:8px}
-#app{display:none;height:calc(100vh - 48px);flex-direction:row}
-#side{width:38%;max-width:340px;background:#202c33;border-right:1px solid #333;display:flex;flex-direction:column}
-#tabs{display:flex;background:#111}
-#tabs button{flex:1;border-radius:0;background:#202c33;color:#aaa;padding:10px;font-size:13px}
-#tabs button.active{background:#075E54;color:#fff}
-.list{flex:1;overflow-y:auto}
-.item{padding:10px;border-bottom:1px solid #333;cursor:pointer;display:flex;justify-content:space-between;align-items:center}
-.item:hover{background:#2a3942}
-.item.active{background:#005c4b}
-#main{flex:1;display:flex;flex-direction:column}
-#topBar{padding:8px 10px;background:#202c33;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #333}
-#online{font-size:11px;opacity:.7}
-#msgs{flex:1;overflow-y:auto;padding:10px;background:#0b141a;display:flex;flex-direction:column}
-.msg{margin:6px 0;padding:7px 10px;border-radius:10px;max-width:80%;word-break:break-word}
-.me{background:#005c4b;align-self:flex-end}
-.other{background:#202c33;align-self:flex-start}
-.msg img{max-width:200px;border-radius:8px;margin-top:4px}
-small{font-size:9px;opacity:.6}
-#typing{font-size:11px;color:#25D366;padding:2px 8px;height:14px}
-#inputArea{display:flex;padding:7px;background:#202c33;gap:5px;align-items:center}
-#inputArea input{flex:1;margin:0}
-#inputArea label,#inputArea button{width:auto;padding:9px;background:#25D366;border-radius:8px;color:#000;font-weight:bold}
-#callModal,#statusModal,#statusView{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:#000;z-index:99;flex-direction:column}
-#callModal video{flex:1;background:#111}
-#callBtns{padding:15px;display:flex;justify-content:center;gap:15px;background:#202c33}
-#callBtns button{padding:12px 20px;border-radius:25px}
-.stat-ring{width:48px;height:48px;border-radius:50%;border:3px solid #25D366;display:flex;align-items:center;justify-content:center;font-size:22px;background:#111}
-.stat-item{display:flex;gap:10px;padding:10px;border-bottom:1px solid #333;align-items:center}
-</style></head><body>
-<header><b>MayorchatzZ PRO 🔥</b><div style="display:flex;gap:5px"><button id="shareBtn" onclick="shareLink()" style="display:none;background:#25D366">Share</button><button id="logoutBtn" onclick="logout()" style="display:none;background:#f15a29;color:#fff">Logout</button></div></header>
-<div id="authBox"><div id="auth">
-<h2 id="ft">Create Account</h2>
-<input id="nIn" placeholder="Your Name">
-<select id="aIn"><option>👤</option><option>😎</option><option>🔥</option><option>👑</option><option>💀</option><option>😍</option><option>🚀</option><option>🎮</option></select>
-<input id="pIn" placeholder="Phone">
-<input id="pwIn" type="password" placeholder="Password">
-<button class="main" onclick="doAuth()" id="ab">Signup</button>
-<p style="margin-top:10px;text-align:center"><span id="tt">Have account?</span> <a href="#" onclick="tog()">Login</a></p>
-<p id="err" style="color:#ff6b6b;text-align:center;margin-top:8px"></p>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MayorChatZ 👑</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui}
+body{background:#111b21;color:#e9edef;height:100vh;display:flex;flex-direction:column}
+#auth{display:flex;flex:1;align-items:center;justify-content:center}
+.card{background:#202c33;padding:24px;border-radius:12px;width:90%;max-width:340px}
+.card h2{color:#00a884;text-align:center;margin-bottom:16px}
+input{width:100%;padding:12px;margin:8px 0;border:none;border-radius:8px;background:#2a3942;color:#fff}
+button{width:100%;padding:12px;margin-top:10px;border:none;border-radius:8px;background:#00a884;color:#111b21;font-weight:700;font-size:16px}
+#app{display:none;flex:1;flex-direction:column;overflow:hidden}
+.header{background:#202c33;padding:12px 16px;display:flex;justify-content:space-between}
+.tabs{display:flex;background:#202c33}
+.tab{flex:1;text-align:center;padding:14px 0;color:#8696a0;border-bottom:3px solid transparent}
+.tab.active{color:#00a884;border-color:#00a884}
+#content{flex:1;overflow-y:auto;background:#0b141a}
+.item{padding:12px 16px;display:flex;gap:12px;border-bottom:1px solid #202c33;align-items:center}
+.avatar{width:48px;height:48px;border-radius:50%;background:#00a884;display:flex;align-items:center;justify-content:center;font-size:24px}
+.msg{max-width:75%;padding:8px 10px;border-radius:8px;margin:4px 16px}
+.me{background:#005c4b;margin-left:auto}
+.other{background:#202c33}
+#chatArea{display:none;flex-direction:column;flex:1}
+#msgs{flex:1;overflow-y:auto;padding:10px 0;display:flex;flex-direction:column}
+.inputBar{display:flex;gap:8px;padding:8px;background:#202c33}
+.inputBar input{flex:1;border-radius:20px}
+.sendBtn{width:50px;background:#00a884;border-radius:50%}
+</style>
+</head>
+<body>
+<div id="auth"><div class="card">
+<h2>MayorChatZ 👑</h2>
+<input id="name" placeholder="Name e.g DE mayors">
+<input id="phone" placeholder="Phone e.g 07088347232">
+<input id="password" type="password" placeholder="Password">
+<input id="av" placeholder="Avatar emoji e.g 👑">
+<button onclick="doSignup()">Signup</button>
+<button onclick="doLogin()" style="background:#2a3942;color:#fff">Login</button>
+<p id="authMsg" style="text-align:center;margin-top:10px;color:#f15c6d"></p>
 </div></div>
 <div id="app">
-<div id="side">
-<div id="tabs"><button id="tabAll" class="active" onclick="setTab('all')">Chats</button><button id="tabStat" onclick="setTab('status')">Status</button><button id="tabPriv" onclick="setTab('private')">DM</button><button id="tabGrp" onclick="setTab('groups')">Groups</button></div>
-<div id="listAll" class="list"></div>
-<div id="listStatus" class="list" style="display:none">
-<div style="padding:10px"><button onclick="openStatusPost()" style="width:100%;background:#25D366;padding:12px;border-radius:10px">+ Post Status like WhatsApp</button></div>
-<div id="statusList"></div>
+<div class="header"><div><b id="myName">Mayor</b><br><small id="myPhone" style="color:#8696a0"></small></div><div onclick="location.reload()">Logout</div></div>
+<div class="tabs">
+<div class="tab active" onclick="switchTab('status',event)">Status</div>
+<div class="tab" onclick="switchTab('chats',event)">Chats</div>
+<div class="tab" onclick="switchTab('groups',event)">Groups</div>
 </div>
-<div id="listPriv" class="list" style="display:none"></div>
-<div id="listGrp" class="list" style="display:none">
-<div style="padding:8px;display:flex;gap:4px"><input id="gName" placeholder="New group name"><button onclick="createGroup()" style="background:#25D366">+</button></div>
-<div id="grpList"></div>
-</div>
-</div>
-<div id="main">
-<div id="topBar"><div><b id="chatTitle">General Chat</b><div id="online"></div></div><div><button onclick="startCall()" style="background:#25D366">📹 Call</button></div></div>
+<div id="content"></div><div id="typing" style="padding:0 16px;color:#00a884;font-size:12px;height:18px"></div>
+<div id="chatArea">
+<div style="padding:10px;background:#202c33;display:flex;gap:10px"><span onclick="closeChat()">⬅️</span><b id="chatWith">General</b></div>
 <div id="msgs"></div>
-<div id="typing"></div>
-<div id="inputArea"><label for="fileIn">📸</label><input type="file" id="fileIn" accept="image/*" hidden onchange="sendImg(this)"><input id="msgIn" placeholder="Type message..." oninput="sendTyping()" onkeypress="if(event.key==='Enter')sendMsg()"><button onclick="sendMsg()">Send</button></div>
-</div>
-</div>
-<div id="statusModal">
-<div style="padding:15px;background:#202c33;display:flex;justify-content:space-between"><b>Post Status</b><button onclick="gid('statusModal').style.display='none'" style="background:#f15a29">X</button></div>
-<div style="padding:15px;flex:1"><input id="statText" placeholder="What’s on your mind?" style="margin-bottom:10px"><label for="statFile" style="display:block;text-align:center;padding:20px;background:#202c33;border-radius:10px;margin-bottom:10px">📸 Tap to add Image</label><input type="file" id="statFile" accept="image/*" hidden onchange="previewStat(this)"><img id="statPrev" style="max-width:100%;border-radius:10px;display:none;margin-bottom:10px"><button onclick="postStatus()" style="width:100%;padding:14px;background:#25D366;border-radius:10px">Post to Status ✅</button></div>
-</div>
-<div id="statusView">
-<div style="padding:10px;background:#075E54;display:flex;justify-content:space-between;align-items:center"><div><b id="viewUser"></b><br><small id="viewTime"></small></div><button onclick="closeStatus()" style="background:#f15a29">X Close</button></div>
-<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px"><h2 id="viewText" style="margin-bottom:15px;text-align:center"></h2><img id="viewImg" style="max-width:100%;max-height:70vh;border-radius:10px;display:none"><p id="viewCount" style="margin-top:10px;opacity:.7"></p></div>
-</div>
-<div id="callModal"><video id="remoteV" autoplay playsinline></video><video id="localV" autoplay playsinline muted style="position:absolute;bottom:80px;right:10px;width:120px;height:160px;border-radius:10px;border:2px solid #25D366"></video><div id="callBtns"><button onclick="endCall()" style="background:#f15a29">End ❌</button></div></div>
+<div class="inputBar"><input id="msgInput" placeholder="Type message" oninput="sendTyping()" onkeydown="if(event.key==='Enter')sendMsg()"><button class="sendBtn" onclick="sendMsg()">➤</button></div>
+</div></div>
 <script>
-let isLogin=false,cur=localStorage.getItem('mayorUser'),ava=localStorage.getItem('mayorAvatar')||'👤';
-let currentTab='all',currentChat={type:'all',id:'all'},pc,localStream,callPoll,statData='',curStatus=null;
-let gid=i=>document.getElementById(i);
-function check(){if(cur){gid('authBox').style.display='none';gid('app').style.display='flex';gid('logoutBtn').style.display='block';gid('shareBtn').style.display='block';loadAll();}}check();
-function tog(){isLogin=!isLogin;gid('ft').innerText=isLogin?'Login':'Create Account';gid('ab').innerText=isLogin?'Login':'Signup';gid('tt').innerText=isLogin?"No account?":"Have account?";gid('nIn').style.display=isLogin?'none':'block';gid('aIn').style.display=isLogin?'none':'block';}
-async function doAuth(){let n=gid('nIn').value.trim(),a=gid('aIn').value,p=gid('pIn').value.trim(),pw=gid('pwIn').value.trim(); if(!p||!pw||(!isLogin&&!n)){gid('err').innerText='Fill all';return;} gid('ab').innerText='Loading...'; try{let url=isLogin?'/api/login':'/api/signup',body=isLogin?{phone:p,password:pw}:{name:n,phone:p,password:pw,avatar:a}; let r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}),d=await r.json(); if(d.error){gid('err').innerText=d.error;gid('ab').innerText=isLogin?'Login':'Signup';return;} localStorage.setItem('mayorUser',isLogin?d.name:n);localStorage.setItem('mayorAvatar',isLogin?d.avatar:a);location.reload();}catch(e){gid('err').innerText='Wait 30s server waking';gid('ab').innerText='Signup';}}
-function setTab(t){currentTab=t; ['All','Status','Priv','Grp'].forEach(x=>gid('tab'+x).className=''); gid('tab'+(t=='all'?'All':t=='status'?'Stat':t=='private'?'Priv':'Grp')).className='active'; gid('listAll').style.display=t=='all'?'block':'none'; gid('listStatus').style.display=t=='status'?'block':'none'; gid('listPriv').style.display=t=='private'?'block':'none'; gid('listGrp').style.display=t=='groups'?'block':'none'; if(t=='status') loadStatus();}
-async function loadAll(){loadUsers();loadGroups();loadMsgs();}
-async function loadUsers(){try{let r=await fetch('/api/users'),u=await r.json(); gid('online').innerText=u.length+' online'; let all=gid('listAll'); all.innerHTML='<div class="item active" onclick="openChat(\'all\',\'all\',\'General Chat\')"><span>🌍 General Chat</span><span>👥</span></div>'; let priv=gid('listPriv'); priv.innerHTML=''; u.forEach(x=>{ if(x.name==cur) return; let d=document.createElement('div'); d.className='item'; d.innerHTML='<span>'+x.avatar+' '+x.name+'</span><span>💬</span>'; d.onclick=()=>openChat('private',x.name,x.name); priv.appendChild(d); let a2=d.cloneNode(true); a2.onclick=d.onclick; all.appendChild(a2);});}catch(e){}}
-async function loadGroups(){try{let r=await fetch('/api/groups'),g=await r.json(); let box=gid('grpList'); box.innerHTML=''; g.forEach(gr=>{ if(gr.id=='all') return; let d=document.createElement('div'); d.className='item'; d.innerHTML='<span>👥 '+gr.name+'</span><span>'+gr.members.length+'</span>'; d.onclick=()=>openChat('group',gr.id,gr.name); box.appendChild(d);});}catch(e){}}
-async function createGroup(){let name=gid('gName').value.trim(); if(!name) return; await fetch('/api/groups',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,creator:cur})}); gid('gName').value=''; loadGroups();}
-function openChat(type,id,title){currentChat={type,id}; gid('chatTitle').innerText=title; setTab('all'); loadMsgs(); if(type=='group') fetch('/api/groups/'+id+'/join',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:cur})});}
-async function loadMsgs(){try{let r=await fetch('/api/messages'),msgs=await r.json(); let box=gid('msgs'); box.innerHTML=''; let filtered=msgs.filter(m=>{ if(currentChat.type=='all') return m.to=='all'||m.to=='general'||!m.to; if(currentChat.type=='private') return (m.user==cur&&m.to==currentChat.id)||(m.user==currentChat.id&&m.to==cur); if(currentChat.type=='group') return m.to==currentChat.id; return true;}); if(filtered.length==0){box.innerHTML='<p style="opacity:.5;text-align:center;margin-top:20px">No messages yet. Say Hello! 👋</p>';} filtered.forEach(m=>{ let d=document.createElement('div'); d.className='msg '+(m.user==cur?'me':'other'); let content=m.text||''; if(m.type=='image') content='<br><img src="'+m.data+'">'; d.innerHTML='<b>'+(m.avatar||'👤')+' '+m.user+'</b><br>'+content+'<br><small>'+(m.time||'')+'</small>'; box.appendChild(d);}); box.scrollTop=box.scrollHeight;}catch(e){}}
-async function sendMsg(){let t=gid('msgIn').value.trim(); if(!t||!cur) return; let to=currentChat.id; await fetch('/api/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:cur,text:t,avatar:ava,type:'text',to})}); gid('msgIn').value=''; loadMsgs();}
-async function sendImg(el){let f=el.files[0]; if(!f) return; let rd=new FileReader(); rd.onload=async()=>{let to=currentChat.id; await fetch('/api/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:cur,avatar:ava,type:'image',data:rd.result,[STRIPPED] loadMsgs();}; rd.readAsDataURL(f);}
-async function sendTyping(){if(!cur) return; await fetch('/api/typing',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:cur})});}
-async function checkTyping(){try{let r=await fetch('/api/typing'),u=await r.json(),o=u.filter(x=>x!=cur); gid('typing').innerText=o.length?o.join(', ')+' typing...':'';}catch(e){}}
-function logout(){localStorage.clear(); location.reload();}
-function shareLink(){let l='https://mayorchatzZ.onrender.com'; if(navigator.share) navigator.share({title:'Join',url:l}); else {navigator.clipboard.writeText(l); alert('Copied '+l);}}
-// STATUS FUNCTIONS
-function openStatusPost(){gid('statusModal').style.display='flex';}
-function previewStat(el){let f=el.files[0]; if(!f) return; let rd=new FileReader(); rd.onload=()=>{statData=rd.result; gid('statPrev').src=statData; gid('statPrev').style.display='block';}; rd.readAsDataURL(f);}
-async function postStatus(){let txt=gid('statText').value.trim(); if(!txt&&!statData){alert('Add text or image');return;} await fetch('/api/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:cur,avatar:ava,text:txt,data:statData,type:statData?'image':'text'})}); gid('statusModal').style.display='none'; gid('statText').value=''; statData=''; gid('statPrev').style.display='none'; loadStatus(); alert('Status posted ✅');}
-async function loadStatus(){try{let r=await fetch('/api/status'),ss=await r.json(); let box=gid('statusList'); box.innerHTML=''; if(ss.length==0){box.innerHTML='<p style="opacity:.5;text-align:center;padding:20px">No status yet<br>Be first to post!</p>'; return;} ss.reverse().forEach(s=>{ let d=document.createElement('div'); d.className='stat-item'; d.innerHTML='<div class="stat-ring">'+s.avatar+'</div><div><b>'+s.user+'</b><br><small>'+s.time+' - '+s.views.length+' views</small></div>'; d.onclick=()=>viewStatus(s.id); box.appendChild(d);});}catch(e){}}
-async function viewStatus(id){try{let r=await fetch('/api/status'),ss=await r.json(); let s=ss.find(x=>x.id==id); if(!s) return; curStatus=s; gid('viewUser').innerText=s.avatar+' '+s.user; gid('viewTime').innerText=s.time; gid('viewText').innerText=s.text||''; if(s.data){gid('viewImg').src=s.data; gid('viewImg').style.display='block';} else gid('viewImg').style.display='none'; gid('viewCount').innerText='👁 '+s.views.length+' views - '+s.views.join(', '); gid('statusView').style.display='flex'; await fetch('/api/status/'+id+'/view',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:cur})});}catch(e){}}
-function closeStatus(){gid('statusView').style.display='none'; loadStatus();}
-// CALL
-async function startCall(){ if(currentChat.type!='private'){alert('Go DM, select user, then Call'); return;} let target=currentChat.id; gid('callModal').style.display='flex'; try{localStream=await navigator.mediaDevices.getUserMedia({video:true,audio:true});}catch(e){alert('Allow camera'); return;} gid('localV').srcObject=localStream; pc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'}]}); localStream.getTracks().forEach(t=>pc.addTrack(t,localStream)); pc.ontrack=e=>{gid('remoteV').srcObject=e.streams[0];}; pc.onicecandidate=e=>{if(e.candidate) fetch('/api/call',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({from:cur,to:target,type:'ice',data:e.candidate})});}; let offer=await pc.createOffer(); await pc.setLocalDescription(offer); await fetch('/api/call',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({from:cur,to:target,type:'offer',data:offer})}); pollCall();}
-async function pollCall(){callPoll=setInterval(async()=>{try{let r=await fetch('/api/call/'+cur),cs=await r.json(); for(let c of cs){ if(c.type=='offer'&&c.from!=cur){ if(!pc){ if(!confirm(c.from+' calling 📹 Accept?')){await fetch('/api/call/'+c.id,{method:'DELETE'}); continue;} gid('callModal').style.display='flex'; localStream=await navigator.mediaDevices.getUserMedia({video:true,audio:true}); gid('localV').srcObject=localStream; pc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'}]}); localStream.getTracks().forEach(t=>pc.addTrack(t,localStream)); pc.ontrack=e=>{gid('remoteV').srcObject=e.streams[0];}; pc.onicecandidate=e=>{if(e.candidate) fetch('/api/call',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({from:cur,to:c.from,type:'ice',data:e.candidate})});}; await pc.setRemoteDescription(c.data); let ans=await pc.createAnswer(); await pc.setLocalDescription(ans); await fetch('/api/call',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({from:cur,to:c.from,type:'answer',data:ans})}); } } if(c.type=='answer'&&pc){await pc.setRemoteDescription(c.data);} if(c.type=='ice'&&pc){try{await pc.addIceCandidate(c.data);}catch(e){}} await fetch('/api/call/'+c.id,{method:'DELETE'});}}catch(e){}},1500);}
-function endCall(){if(pc){pc.close(); pc=null;} if(localStream){localStream.getTracks().forEach(t=>t.stop());} gid('callModal').style.display='none'; clearInterval(callPoll); gid('localV').srcObject=null; gid('remoteV').srcObject=null;}
-setInterval(()=>{if(cur){if(currentTab=='all') loadMsgs(); checkTyping(); if(currentTab=='status') loadStatus();}},3000);
-</script></body></html>
+let ME=null,CURR='all',USERS=[];
+async function doSignup(){
+ let body={name:document.getElementById('name').value,phone:document.getElementById('phone').value,password:document.getElementById('password').value,avatar:document.getElementById('av').value||'👤'};
+ if(!body.name||!body.phone||!body.password){authMsg.innerText='Fill all';return}
+ let r=await fetch('/api/signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});let j=await r.json();
+ if(j.error){authMsg.innerText=j.error==='exists'?'Phone exists, Login';return}
+ authMsg.style.color='#00a884';authMsg.innerText='Signup ok! Now Login';
+}
+async function doLogin(){
+ let body={phone:document.getElementById('phone').value,password:document.getElementById('password').value};
+ let r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});let j=await r.json();
+ if(j.error){authMsg.innerText='Wrong phone/pass';return}
+ ME={name:j.name,avatar:j.avatar,phone:body.phone}; myName.innerText=j.name+' '+j.avatar; myPhone.innerText=body.phone;
+ auth.style.display='none'; app.style.display='flex'; loadUsers(); loadStatus(); setInterval(poll,2000);
+}
+function switchTab(t,e){
+ document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active')); e.target.classList.add('active');
+ if(t==='status')loadStatus(); if(t==='chats')loadChats(); if(t==='groups')loadGroups();
+}
+async function loadUsers(){let r=await fetch('/api/users');USERS=await r.json();}
+async function loadChats(){
+ content.innerHTML=''; chatArea.style.display='none'; content.style.display='block';
+ let div=document.createElement('div');div.className='item';div.innerHTML=`<div class="avatar">🌍</div><div><b>General Group</b></div>`;div.onclick=()=>openChat('all','General');content.appendChild(div);
+ USERS.forEach(u=>{if(u.name===ME.name)return;let d=document.createElement('div');d.className='item';d.innerHTML=`<div class="avatar">${u.avatar}</div><div><b>${u.name}</b></div>`;d.onclick=()=>openChat(u.name,u.name);content.appendChild(d);});
+}
+async function loadGroups(){
+ content.innerHTML=''; chatArea.style.display='none'; content.style.display='block';
+ let r=await fetch('/api/groups');let g=await r.json();
+ g.forEach(x=>{let d=document.createElement('div');d.className='item';d.innerHTML=`<div class="avatar">👥</div><div><b>${x.name}</b></div>`;d.onclick=()=>openChat(x.id,x.name);content.appendChild(d);});
+}
+async function loadStatus(){
+ content.innerHTML=''; chatArea.style.display='none'; content.style.display='block';
+ let top=document.createElement('div');top.className='item';top.innerHTML=`<div class="avatar">${ME.avatar}</div><div style="flex:1"><input id="stText" placeholder="My status"><button onclick="postStatus()" style="padding:6px;margin-top:4px">Post</button></div>`;content.appendChild(top);
+ let r=await fetch('/api/status');let list=await r.json();
+ list.reverse().forEach(s=>{let d=document.createElement('div');d.className='item';d.innerHTML=`<div class="avatar">${s.avatar}</div><div><b>${s.user}</b><br>${s.text}<br><small>${s.time} - ${s.views.length} views</small></div>`;d.onclick=()=>fetch('/api/status/'+s.id+'/view',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:ME.name})});content.appendChild(d);});
+}
+async function postStatus(){let t=document.getElementById('stText').value;if(!t)return;await fetch('/api/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:ME.name,avatar:ME.avatar,text:t})});loadStatus();}
+function openChat(dest,name){CURR=dest;chatWith.innerText=name;content.style.display='none';chatArea.style.display='flex';msgs.innerHTML='';poll();}
+function closeChat(){chatArea.style.display='none';content.style.display='block';loadChats();}
+async function sendMsg(){let txt=msgInput.value.trim();if(!txt)return;msgInput.value='';await fetch('/api/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:ME.name,avatar:ME.avatar,text:txt,dest:CURR})});poll();}
+async function sendTyping(){await fetch('/api/typing',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:ME.name})});}
+async function poll(){
+ if(!ME)return;
+ let tr=await fetch('/api/typing');let ta=await tr.json();let others=ta.filter(u=>u!==ME.name);typing.innerText=others.length?others.join(', ')+' typing...':'';
+ let mr=await fetch('/api/messages');let all=await mr.json();
+ let filtered=CURR==='all'?all.filter(m=>m.dest==='all'):all.filter(m=>(m.dest===CURR&&m.user===ME.name)||(m.dest===ME.name&&m.user===CURR));
+ msgs.innerHTML='';filtered.slice(-100).forEach(m=>{let d=document.createElement('div');d.className='msg '+(m.user===ME.name?'me':'other');d.innerHTML=`<small style="color:#00a884">${m.user}</small><br>${m.text}<br><small style="opacity:.6;font-size:10px">${m.time}</small>`;msgs.appendChild(d);});msgs.scrollTop=msgs.scrollHeight;
+}
+</script>
+</body>
+</html>
