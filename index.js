@@ -1,19 +1,66 @@
 const express=require('express');
 const app=express();
-const PORT=process.env.PORT||10000;
+const path=require('path');
 app.use(express.json({limit:'50mb'}));
-app.use(express.static('public'));
-let users=[],msgs=[],calls=[],online={};
-app.use((r,s,n)=>{s.header("Access-Control-Allow-Origin","*");s.header("Access-Control-Allow-Headers","*");s.header("Access-Control-Allow-Methods","*");n();});
-app.get('/api/messages',(r,s)=>s.json(msgs));
-app.get('/api/users',(r,s)=>{let n=Date.now();let l=Object.keys(online).filter(k=>n-online[k]<20000);s.json({count:l.length,list:l})});
-app.post('/api/online',(r,s)=>{online[r.body.name]=Date.now();s.json({ok:1})});
-app.get('/api/calls',(r,s)=>s.json(calls.filter(c=>c.to==r.query.user)));
-app.post('/api/calls',(r,s)=>{calls.push({id:Date.now()+'',from:r.body.from,to:r.body.to,type:r.body.type,data:r.body.data||'',accepted:0});s.json({ok:1})});
-app.put('/api/calls/:id',(r,s)=>{let c=calls.find(x=>x.id==r.params.id);if(c)c.accepted=1;s.json({ok:1})});
-app.delete('/api/calls/:id',(r,s)=>{calls=calls.filter(c=>c.id!=r.params.id);s.json({ok:1})});
-app.post('/api/messages',(r,s)=>{msgs.push({id:Date.now()+'',name:r.body.name,text:r.body.text,type:r.body.type||'text',data:r.body.data||'',time:new Date().toLocaleTimeString()});if(msgs.length>500)msgs.shift();s.json({ok:1})});
-app.post('/api/signup',(r,s)=>{users.push(r.body);s.json({ok:1})});
-app.post('/api/login',(r,s)=>s.json({ok:1,user:{name:r.body.phone||'User'}}));
-app.get('/',(r,s)=>s.sendFile(__dirname+'/public/index.html'));
-app.listen(PORT,()=>console.log('Live'));
+app.use(express.static(path.join(__dirname,'public')));
+let messages=[];
+let online={};
+let calls=[];
+let status=[];
+let groups=[{name:'General',members:[]}];
+
+app.get('/api/messages',(req,res)=>{
+  let g=req.query.group||'General';
+  res.json(messages.filter(m=> (m.group||'General')==g));
+});
+app.post('/api/messages',(req,res)=>{
+  let m={id:Date.now().toString(),name:req.body.name,text:req.body.text,type:req.body.type||'text',data:req.body.data||'',time:new Date().toLocaleTimeString(),group:req.body.group||'General'};
+  messages.push(m);
+  if(messages.length>200)messages.shift();
+  res.json(m);
+});
+app.delete('/api/messages/:id',(req,res)=>{
+  messages=messages.filter(m=>m.id!=req.params.id);
+  res.json({ok:true});
+});
+
+app.get('/api/status',(req,res)=>{res.json(status.slice(-20));});
+app.post('/api/status',(req,res)=>{
+  status.push({id:Date.now().toString(),name:req.body.name,type:req.body.type,data:req.body.data,time:Date.now()});
+  status=status.filter(s=>Date.now()-s.time < 24*60*60*1000);
+  res.json({ok:true});
+});
+
+app.get('/api/groups',(req,res)=>res.json(groups));
+app.post('/api/groups',(req,res)=>{
+  groups.push({name:req.body.name,members:[]});
+  res.json({ok:true});
+});
+
+app.post('/api/online',(req,res)=>{online[req.body.name]=Date.now();res.json({ok:true});});
+app.get('/api/users',(req,res)=>{
+  let now=Date.now();
+  Object.keys(online).forEach(k=>{if(now-online[k]>10000)delete online[k];});
+  res.json({count:Object.keys(online).length,list:Object.keys(online)});
+});
+app.get('/api/calls',(req,res)=>{
+  let u=req.query.user;
+  res.json(calls.filter(c=>c.to==u));
+});
+app.post('/api/calls',(req,res)=>{
+  let c={id:Date.now().toString(),from:req.body.from,to:req.body.to,type:req.body.type,data:req.body.data,time:Date.now(),accepted:false};
+  calls.push(c);
+  res.json(c);
+});
+app.put('/api/calls/:id',(req,res)=>{
+  let c=calls.find(x=>x.id==req.params.id);
+  if(c)c.accepted=true;
+  res.json({ok:true});
+});
+app.delete('/api/calls/:id',(req,res)=>{
+  calls=calls.filter(c=>c.id!=req.params.id);
+  res.json({ok:true});
+});
+app.get('/',(req,res)=>res.sendFile(path.join(__dirname,'public','index.html')));
+const PORT=process.env.PORT||3000;
+app.listen(PORT,()=>console.log('MayorChatZ PRO Live '+PORT));
