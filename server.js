@@ -1,13 +1,13 @@
 const express=require('express');const app=express();const PORT=process.env.PORT||3000;
-app.use(express.json({limit:'15mb'}));app.use(express.static('public'));
+app.use(express.json({limit:'20mb'}));app.use(express.static('public'));
 let users=[],messages=[],typing={};
-app.post('/api/signup',(req,res)=>{let {name,phone,password,avatar}=req.body;if(users.find(u=>u.phone==phone))return res.json({error:'exists'});users.push({name,phone,password,avatar:avatar||'👤'});res.json({ok:true});});
+app.post('/api/signup',(req,res)=>{let {name,phone,password,avatar}=req.body;console.log('signup',req.body);if(!name||!phone||!password)return res.json({error:'fill all'});if(users.find(u=>u.phone==phone))return res.json({error:'exists'});users.push({name,phone,password,avatar:avatar||'👤'});res.json({ok:true});});
 app.post('/api/login',(req,res)=>{let {phone,password}=req.body;let u=users.find(x=>x.phone==phone&&x.password==password);if(!u)return res.json({error:'wrong'});res.json({name:u.name,avatar:u.avatar});});
 app.get('/api/users',(req,res)=>res.json(users.map(u=>({name:u.name,avatar:u.avatar}))));
 app.get('/api/messages',(req,res)=>res.json(messages));
-app.post('/api/messages',(req,res)=>{let m={id:Date.now()+'',user:req.body.user,text:req.body.text||'',avatar:req.body.avatar,type:req.body.type||'text',data:req.body.data||'',time:new Date().toLocaleTimeString(),readBy:[]};messages.push(m);if(messages.length>200)messages.shift();res.json({ok:true});});
+app.post('/api/messages',(req,res)=>{let m={id:Date.now()+'',user:req.body.user,text:req.body.text||'',avatar:req.body.avatar||'👤',type:req.body.type||'text',data:req.body.data||'',time:new Date().toLocaleTimeString(),readBy:[]};messages.push(m);if(messages.length>200)messages.shift();res.json({ok:true});});
 app.delete('/api/messages/:id',(req,res)=>{messages=messages.filter(m=>m.id!=req.params.id);res.json({ok:true});});
 app.post('/api/typing',(req,res)=>{typing[req.body.user]=Date.now();res.json({ok:true});});
 app.get('/api/typing',(req,res)=>{let now=Date.now();let active=Object.keys(typing).filter(k=>now-typing[k]<3000);res.json(active);});
 app.post('/api/read',(req,res)=>{let {id,user}=req.body;let m=messages.find(x=>x.id==id);if(m&&!m.readBy.includes(user))m.readBy.push(user);res.json({ok:true});});
-app.listen(PORT,()=>console.log('MayorchatzZ EVERYTHING live on '+PORT));
+app.listen(PORT,()=>console.log('EVERYTHING live '+PORT));
