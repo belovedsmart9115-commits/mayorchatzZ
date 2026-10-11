@@ -1,98 +1,42 @@
-const express = require('express');
-const app = express();
-const PORT = process.env.PORT || 10000;
-
-app.use(express.json());
-
-let users = [{name:"DE mayors 👑", phone:"07088347232", password:"1234"}];
-let messages = [];
-let online = {};
-
-app.use((req,res,next)=>{
-  res.header("Access-Control-Allow-Origin","*");
-  res.header("Access-Control-Allow-Headers","Content-Type");
-  res.header("Access-Control-Allow-Methods","GET,POST");
-  next();
-});
-
-app.get('/api/users', (req,res)=> res.json({count: users.length, users: users.map(u=>({name:u.name, phone:u.phone}))}));
-app.get('/api/messages', (req,res)=> res.json(messages));
-app.post('/api/messages', (req,res)=>{
-  const {name,text} = req.body;
-  if(!text) return res.json({ok:false});
-  messages.push({name,text,time:new Date().toLocaleTimeString(), id: Date.now()});
-  if(messages.length>100) messages.shift();
-  res.json({ok:true});
-});
-
-app.post('/api/signup', (req,res)=>{
-  const {name,phone,password} = req.body;
-  if(!name||!phone||!password) return res.json({ok:false, msg:"Fill all"});
-  if(users.find(u=>u.phone===phone)) return res.json({ok:false, msg:"Phone already used"});
-  users.push({name,phone,password});
-  console.log("New user:", name, phone);
-  res.json({ok:true});
-});
-
-app.post('/api/login', (req,res)=>{
-  const {phone,password} = req.body;
-  const u = users.find(u=>u.phone===phone && u.password===password);
-  if(!u) return res.json({ok:false, msg:"Wrong phone/password"});
-  res.json({ok:true, user:u});
-});
-
-app.get('/', (req,res)=>{
- res.send(`<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>MayorChat</title><style>body{margin:0;background:#111b21;color:#fff;font-family:sans-serif} .box{max-width:400px;margin:40px auto;background:#202c33;padding:20px;border-radius:12px} input{width:100%;padding:12px;margin:8px 0;border-radius:8px;border:none} button{width:100%;padding:12px;background:#25d366;border:none;border-radius:8px;font-weight:bold;font-size:16px;cursor:pointer} button:disabled{background:gray} #app{display:none} .msg{padding:8px;margin:4px;background:#2a3942;border-radius:8px} </style></head><body>
-<div id="auth" class="box"><h2>MayorChatZ 👑</h2><div id="err" style="color:#ff5c5c"></div><input id="name" placeholder="Name"><input id="phone" placeholder="Phone e.g 080..."><input id="pass" type="password" placeholder="Password"><button id="btn1" onclick="signup()">Sign Up - Click Once Wait</button><button style="margin-top:10px;background:#111;color:#25d366;border:1px solid #25d366" onclick="showLogin()">Already have? Login</button></div>
-<div id="login" class="box" style="display:none"><h2>Login 👑</h2><div id="err2" style="color:#ff5c5c"></div><input id="lphone" placeholder="Phone"><input id="lpass" type="password" placeholder="Password"><button id="btn2" onclick="login()">Login</button><button style="margin-top:10px;background:#111;color:#25d366;border:1px solid #25d366" onclick="showSignup()">No account? Signup</button></div>
-<div id="app"><div style="background:#202c33;padding:10px;display:flex;justify-content:space-between"><b id="uname">DE mayors 👑</b><button onclick="logout()" style="width:auto;padding:5px 15px">Logout</button></div><div style="padding:10px"><div>General Group 🌍 <span id="online">1 online</span> <button onclick="share()" style="width:auto;background:#25d366;padding:5px 15px;border-radius:20px">Invite</button></div><div id="chat" style="height:60vh;overflow-y:auto;margin-top:10px"></div><div style="display:flex;gap:5px;margin-top:10px"><input id="msg" placeholder="Type message" style="flex:1"><button onclick="send()" style="width:80px">Send</button></div><button onclick="share()" style="margin-top:10px">Share App to Friends 🔗</button></div></div>
+const express=require('express');const app=express();const PORT=process.env.PORT||10000;
+app.use(express.json({limit:'10mb'}));
+let users=[{name:"DE mayors 👑",phone:"07088347232",password:"1234"}];
+let messages=[];let statuses=[];let online={};let typing={};
+app.use((req,res,next)=>{res.header("Access-Control-Allow-Origin","*");res.header("Access-Control-Allow-Headers","Content-Type");res.header("Access-Control-Allow-Methods","GET,POST");next();});
+app.get('/api/users',(req,res)=>{let now=Date.now();let list=Object.keys(online).filter(k=>now-online[k]<15000);res.json({count:list.length,list,messages});});
+app.post('/api/online',(req,res)=>{const {name}=req.body;if(name){online[name]=Date.now();}res.json({ok:true});});
+app.post('/api/typing',(req,res)=>{const {name,isTyping}=req.body;typing[name]=isTyping?Date.now():0;res.json({ok:true});});
+app.get('/api/typing',(req,res)=>{let now=Date.now();let who=Object.keys(typing).filter(k=>now-typing[k]<3000);res.json(who);});
+app.get('/api/messages',(req,res)=>res.json(messages));
+app.post('/api/messages',(req,res)=>{const {name,text,type,data}=req.body;if(!text&&!data)return res.json({ok:false});messages.push({name,text:text||"",type:type||"text",data:data||"",time:new Date().toLocaleTimeString(),id:Date.now()});if(messages.length>150)messages.shift();res.json({ok:true});});
+app.get('/api/status',(req,res)=>res.json(statuses));
+app.post('/api/status',(req,res)=>{const {name,text,data}=req.body;statuses.unshift({name,text,data,time:new Date().toLocaleTimeString(),id:Date.now()});if(statuses.length>30)statuses.pop();res.json({ok:true});});
+app.post('/api/signup',(req,res)=>{const{name,phone,password}=req.body;if(!name||!phone||!password)return res.json({ok:false,msg:"Fill all"});if(users.find(u=>u.phone===phone))return res.json({ok:false,msg:"Phone already used, use Login"});users.push({name,phone,password});res.json({ok:true});});
+app.post('/api/login',(req,res)=>{const{phone,password}=req.body;const u=users.find(u=>u.phone===phone&&u.password===password);if(!u)return res.json({ok:false,msg:"Wrong phone/password, try 1234"});res.json({ok:true,user:u});});
+app.get('/',(req,res)=>{res.send(`<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>MayorChatZ</title><style>body{margin:0;background:#111b21;color:#fff;font-family:sans-serif}.box{max-width:420px;margin:30px auto;background:#202c33;padding:20px;border-radius:12px} input{width:100%;padding:12px;margin:6px 0;border-radius:8px;border:none;box-sizing:border-box} button{padding:12px;background:#25d366;border:none;border-radius:8px;font-weight:bold;cursor:pointer} #app{display:none}.msg{padding:8px;margin:5px;background:#2a3942;border-radius:10px;word-break:break-word}.mine{background:#005c4b} img.chatimg{max-width:100%;border-radius:10px;margin-top:5px}.top{display:flex;justify-content:space-between;background:#202c33;padding:10px;position:sticky;top:0}.tabs{display:flex;gap:10px;padding:10px}.tab{padding:6px 12px;background:#2a3942;border-radius:20px;cursor:pointer}.active{background:#25d366;color:#000} #rec{animation:pulse 1s infinite} @keyframes pulse{0%{background:#ff0000}50%{background:#990000}100%{background:#ff0000}}</style></head><body>
+<div id="auth" class="box"><h2>MayorChatZ 👑 Full</h2><div id="err" style="color:#ff5c5c"></div><input id="name" placeholder="Name"><input id="phone" placeholder="Phone"><input id="pass" type="password" placeholder="Password 1234"><button style="width:100%" id="b1" onclick="signup()">Sign Up</button><button style="width:100%;margin-top:8px;background:#111;color:#25d366;border:1px solid #25d366" onclick="showL()">Login</button></div>
+<div id="login" class="box" style="display:none"><h2>Login</h2><div id="err2" style="color:#ff5c5c"></div><input id="lphone" placeholder="Phone"><input id="lpass" type="password" placeholder="Password"><button style="width:100%" onclick="login()">Login</button><button style="width:100%;margin-top:8px;background:#111;color:#25d366;border:1px solid #25d366" onclick="showS()">Signup</button></div>
+<div id="app"><div class="top"><b id="uname"></b><div><span id="online">1 online</span> <button onclick="logout()" style="padding:5px 12px">Logout</button></div></div><div class="tabs"><div class="tab active" onclick="tab('chat')" id="tchat">Chats</div><div class="tab" onclick="tab('status')" id="tstatus">Status</div><div class="tab" onclick="tab('online')" id="tonline">Online</div></div>
+<div id="viewChat" style="padding:10px"><div style="display:flex;justify-content:space-between"><span>General Group 🌍 <small id="typing"></small></span><button onclick="share()" style="padding:5px 12px;border-radius:20px">Invite</button></div><div id="chat" style="height:55vh;overflow-y:auto;margin-top:10px"></div><div style="display:flex;gap:5px;margin-top:8px"><input id="msg" placeholder="Type..." style="flex:1" oninput="isTyping()"><input type="file" id="img" accept="image/*" style="display:none" onchange="sendImg(this)"><button onclick="document.getElementById('img').click()" style="width:45px">📷</button><button id="mic" onclick="toggleVoice()" style="width:45px">🎤</button><button onclick="send()" style="width:60px">Send</button></div><button onclick="share()" style="width:100%;margin-top:8px">Share App to Friends 🔗</button></div>
+<div id="viewStatus" style="display:none;padding:10px"><div style="display:flex;gap:5px"><input id="stxt" placeholder="Post status..."><button onclick="postStatus()">Post</button></div><div id="slist" style="margin-top:10px"></div></div>
+<div id="viewOnline" style="display:none;padding:10px"><h3>Who dey online 🟢</h3><div id="olist"></div></div>
+</div>
 <script>
-let cur=null;
-function showLogin(){document.getElementById('auth').style.display='none';document.getElementById('login').style.display='block'}
-function showSignup(){document.getElementById('login').style.display='none';document.getElementById('auth').style.display='block'}
-async function signup(){
- const b=document.getElementById('btn1'); b.disabled=true; b.innerText='Wait... Creating...';
- const name=document.getElementById('name').value.trim();
- const phone=document.getElementById('phone').value.trim();
- const password=document.getElementById('pass').value.trim();
- if(!name||!phone||!password){document.getElementById('err').innerText='Fill all fields'; b.disabled=false; b.innerText='Sign Up - Click Once Wait'; return}
- try{
-  const r=await fetch('/api/signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,phone,password})});
-  const d=await r.json();
-  if(!d.ok){document.getElementById('err').innerText=d.msg; b.disabled=false; b.innerText='Sign Up'; return}
-  localStorage.setItem('mayor_user',JSON.stringify({name,phone})); cur={name,phone}; enter();
- }catch(e){document.getElementById('err').innerText='Network slow, wait 60s and try again - server dey wake'; b.disabled=false; b.innerText='Try Again'}
-}
-async function login(){
- const b=document.getElementById('btn2'); b.disabled=true; b.innerText='Wait...';
- const phone=document.getElementById('lphone').value.trim();
- const password=document.getElementById('lpass').value.trim();
- try{
-  const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone,password})});
-  const d=await r.json();
-  if(!d.ok){document.getElementById('err2').innerText=d.msg; b.disabled=false; b.innerText='Login'; return}
-  localStorage.setItem('mayor_user',JSON.stringify(d.user)); cur=d.user; enter();
- }catch(e){document.getElementById('err2').innerText='Network slow, wait and try again'; b.disabled=false; b.innerText='Login'}
-}
-function enter(){
- document.getElementById('auth').style.display='none';document.getElementById('login').style.display='none';document.getElementById('app').style.display='block';
- document.getElementById('uname').innerText=cur.name; load(); setInterval(load,2000);
-}
-async function load(){
- try{
-  const m=await (await fetch('/api/messages')).json();
-  const c=document.getElementById('chat'); c.innerHTML=m.map(x=>'<div class=msg><b>'+x.name+':</b> '+x.text+'<br><small>'+x.time+'</small></div>').join(''); c.scrollTop=c.scrollHeight;
-  const u=await (await fetch('/api/users')).json(); document.getElementById('online').innerText=u.count+' online';
- }catch(e){}
-}
-async function send(){
- const t=document.getElementById('msg').value.trim(); if(!t) return; document.getElementById('msg').value='';
- await fetch('/api/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:cur.name,text:t})}); load();
-}
-function logout(){localStorage.removeItem('mayor_user'); location.reload()}
-function share(){navigator.clipboard.writeText(location.href); alert('Link copied! Share to friend: '+location.href)}
-window.onload=()=>{const s=localStorage.getItem('mayor_user'); if(s){cur=JSON.parse(s); enter()}}
-</script></body></html>`);
-});
-
-app.listen(PORT, ()=> console.log("MayorChat running on", PORT));
+let cur=null,recorder=null,recChunks=[],isRec=false;
+function showL(){auth.style.display='none';login.style.display='block'} function showS(){login.style.display='none';auth.style.display='block'}
+async function signup(){b1.disabled=true;b1.innerText='Creating...';let name=document.getElementById('name').value.trim();let phone=document.getElementById('phone').value.trim();let password=document.getElementById('pass').value.trim();if(!name||!phone||!password){err.innerText='Fill all';b1.disabled=false;return}try{let r=await fetch('/api/signup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,phone,password})});let d=await r.json();if(!d.ok){err.innerText=d.msg;b1.disabled=false;b1.innerText='Sign Up';return}localStorage.setItem('mayor_user',JSON.stringify({name,phone}));cur={name,phone};enter()}catch(e){err.innerText='Server dey wake, wait 60s';b1.disabled=false}}
+async function login(){let phone=lphone.value.trim();let password=lpass.value.trim();try{let r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone,password})});let d=await r.json();if(!d.ok){err2.innerText=d.msg;return}localStorage.setItem('mayor_user',JSON.stringify(d.user));cur=d.user;enter()}catch(e){err2.innerText='Wait 60s, server waking'}}
+function enter(){auth.style.display='none';login.style.display='none';app.style.display='block';uname.innerText=cur.name;Notification.requestPermission();load();setInterval(load,2500);setInterval(heart,4000);}
+async function heart(){if(cur)await fetch('/api/online',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:cur.name})})}
+async function isTyping(){await fetch('/api/typing',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:cur.name,isTyping:true})})}
+let lastMsgCount=0;
+async function load(){try{let m=await (await fetch('/api/messages')).json();let c=document.getElementById('chat');if(m.length!=lastMsgCount&&lastMsgCount!=0&&m[m.length-1].name!=cur.name){if(Notification.permission==='granted')new Notification(m[m.length-1].name+': '+(m[m.length-1].text||'sent image/voice'));navigator.vibrate&&navigator.vibrate(200);}lastMsgCount=m.length;c.innerHTML=m.map(x=>{let cl=x.name===cur.name?'msg mine':'msg';let extra='';if(x.type==='image')extra='<br><img class=chatimg src='+x.data+'>';if(x.type==='voice')extra='<br><audio controls src='+x.data+'></audio>';return '<div class='+cl+'><b>'+x.name+':</b> '+x.text+extra+'<br><small>'+x.time+'</small></div>'}).join('');c.scrollTop=c.scrollHeight;let u=await (await fetch('/api/users')).json();online.innerText=u.count+' online';olist.innerHTML=u.list.map(n=>'<div class=msg>🟢 '+n+'</div>').join('');let t=await (await fetch('/api/typing')).json();let others=t.filter(n=>n!=cur.name);typing.innerText=others.length?others.join(',')+' typing...':'';let s=await (await fetch('/api/status')).json();slist.innerHTML=s.map(x=>'<div class=msg><b>'+x.name+'</b> '+x.text+'<br>'+(x.data?'<img class=chatimg src='+x.data+'>':'')+'<br><small>'+x.time+'</small></div>').join('');}catch(e){}}
+async function send(){let t=msg.value.trim();if(!t)return;msg.value='';await fetch('/api/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:cur.name,text:t,type:'text'})});load()}
+async function sendImg(inp){let file=inp.files[0];if(!file)return;let reader=new FileReader();reader.onload=async e=>{await fetch('/api/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:cur.name,text:'📷 Image',type:'image',data:e.target.result})});load()};reader.readAsDataURL(file)}
+async function postStatus(){let t=stxt.value.trim();if(!t)return;stxt.value='';await fetch('/api/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:cur.name,text:t})});load();tab('status')}
+async function toggleVoice(){let btn=document.getElementById('mic');if(!isRec){try{let stream=await navigator.mediaDevices.getUserMedia({audio:true});recorder=new MediaRecorder(stream);recChunks=[];recorder.ondataavailable=e=>recChunks.push(e.data);recorder.onstop=async()=>{let blob=new Blob(recChunks,{type:'audio/webm'});let reader=new FileReader();reader.onload=async e=>{await fetch('/api/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:cur.name,text:'🎤 Voice',type:'voice',data:e.target.result})});load()};reader.readAsDataURL(blob)};recorder.start();isRec=true;btn.innerText='⏹️';btn.id='rec';}catch(e){alert('Mic permission needed')}}else{recorder.stop();isRec=false;btn.innerText='🎤';btn.id='mic'}}
+function tab(v){viewChat.style.display=v==='chat'?'block':'none';viewStatus.style.display=v==='status'?'block':'none';viewOnline.style.display=v==='online'?'block':'none';tchat.className=v==='chat'?'tab active':'tab';tstatus.className=v==='status'?'tab active':'tab';tonline.className=v==='online'?'tab active':'tab'}
+function logout(){localStorage.removeItem('mayor_user');location.reload()} function share(){navigator.clipboard.writeText(location.href);alert('Link copied: '+location.href)}
+window.onload=()=>{let s=localStorage.getItem('mayor_user');if(s){cur=JSON.parse(s);enter()}}
+</script></body></html>`);});
+app.listen(PORT,()=>console.log("Full MayorChat running"));
