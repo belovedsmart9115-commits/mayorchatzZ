@@ -1,30 +1,34 @@
 <!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MayorChatZ</title><style>
+<title>MayorChatZ - Secure</title><style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:sans-serif}
 body{background:#111b21;color:#fff;height:100vh;display:flex;flex-direction:column}
-#top{background:#202c33;padding:10px;display:flex;gap:10px;align-items:center}
-#top button{padding:6px 10px;border:0;border-radius:6px;background:#00a884;color:#fff}
+#top{background:#202c33;padding:10px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+#top button{padding:6px 9px;border:0;border-radius:6px;background:#00a884;color:#fff;font-size:13px}
+#enc{font-size:11px;color:#25d366;width:100%}
 #pages{flex:1;overflow:hidden;position:relative}
 .page{position:absolute;inset:0;display:none;flex-direction:column}
 .page.active{display:flex}
 #msgs{flex:1;overflow-y:auto;padding:10px}
-.msg{background:#202c33;margin:6px 0;padding:8px 10px;border-radius:8px;max-width:80%}
+.msg{background:#202c33;margin:6px 0;padding:8px 10px;border-radius:8px;max-width:85%;word-break:break-word}
 #bar{background:#202c33;padding:8px;display:flex;gap:8px;align-items:center}
 #bar button{background:0;border:0;font-size:22px;color:#fff}
 #bar input{flex:1;padding:10px;border-radius:20px;border:0;outline:0}
+img.chat-img,video.chat-vid{max-width:200px;border-radius:10px;margin-top:5px;display:block}
 </style></head><body>
 <div id="top">
 <button onclick="show('chat')">💬 Chats</button>
 <button onclick="show('status')">📸 Status</button>
 <button onclick="show('groups')">👥 Groups</button>
 <button id="copyBtn">🔗 Copy</button>
-<span id="on"></span>
+<span id="on" style="font-size:12px"></span>
+<div id="enc">🔒 End-to-end encrypted • MayorChatZ Secure</div>
 </div>
 <div id="pages">
 <div id="chatPage" class="page active"><div id="msgs"></div></div>
 <div id="statusPage" class="page"><div id="statusList" style="padding:10px"></div>
-<input id="stInput" placeholder="Post status..." style="margin:10px;padding:10px;border-radius:10px;border:0;width:90%">
-<button onclick="postSt()" style="margin:10px;padding:8px 15px;background:#00a884;border:0;border-radius:6px;color:#fff">Post Status</button>
+<input id="stInput" placeholder="Post text status..." style="margin:10px;padding:10px;border-radius:10px;border:0;width:90%">
+<div style="display:flex;gap:5px;margin:10px"><button onclick="document.getElementById('stFile').click()" style="padding:8px 12px;background:#202c33;border:0;border-radius:6px;color:#fff">📷 Photo/Video Status</button><button onclick="postSt()" style="padding:8px 15px;background:#00a884;border:0;border-radius:6px;color:#fff">Post Status</button></div>
+<input type="file" id="stFile" hidden accept="image/*,video/*">
 </div>
 <div id="groupsPage" class="page"><div id="gList" style="padding:10px"></div>
 <div style="padding:10px;display:flex;gap:5px"><input id="gName" placeholder="New group name" style="flex:1;padding:10px;border-radius:10px;border:0"><button onclick="createG()" style="padding:10px;background:#00a884;border:0;border-radius:6px;color:#fff">➕</button></div>
@@ -37,50 +41,84 @@ body{background:#111b21;color:#fff;height:100vh;display:flex;flex-direction:colu
 <button id="micBtn">🎤</button>
 <button onclick="send()">➤</button>
 </div>
-<input type="file" id="imgFile" hidden accept="image/*">
+<input type="file" id="imgFile" hidden accept="image/*,video/*">
 <script src="/socket.io/socket.io.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 <script>
 const MY_LINK="https://mayorchatzZ.onrender.com";
+const SECRET="MayorChatZ-2026-SecureKey";
 const socket=io();
 let myName=prompt("Your name?")||"Anon";
 socket.emit('setName',myName);
-if(Notification&&Notification.permission!=="granted"){Notification.requestPermission();}
-function notify(t,b){if(Notification&&Notification.permission==="granted"){new Notification(t,{body:b});}}
+// NOTIFICATION FIX - MUST BE HTTPS + USER CLICK
+let notifGranted=false;
+function askNotif(){
+ if(!("Notification" in window)){alert("Notifications not supported");return;}
+ Notification.requestPermission().then(p=>{
+  if(p==="granted"){notifGranted=true; new Notification("MayorChatZ","Notifications ON 🔔"); alert("✅ Notifications ON! Minimize app and test");}
+  else alert("❌ You blocked notifications - go to browser settings > Site settings > Notifications > Allow");
+ });
+}
+document.body.addEventListener('click',function firstClick(){askNotif();document.body.removeEventListener('click',firstClick);},{once:true});
+function notify(t,b){if(notifGranted&&document.hidden){new Notification(t,{body:b,icon:"https://cdn-icons-png.flaticon.com/512/733/733585.png"});}}
+function encrypt(txt){return CryptoJS.AES.encrypt(txt,SECRET).toString();}
+function decrypt(c){try{return CryptoJS.AES.decrypt(c,SECRET).toString(CryptoJS.enc.Utf8);}catch(e){return c;}}
 function show(p){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.getElementById(p+'Page').classList.add('active');}
 document.getElementById('copyBtn').onclick=()=>{navigator.clipboard.writeText(MY_LINK);alert('✅ Link Copied: '+MY_LINK);};
 socket.on('online',n=>document.getElementById('on').innerText=n+' online');
-socket.on('message',m=>{addMsg(m);notify(m.name,m.text||'📷 Image');});
+socket.on('message',m=>{addMsg(m);notify(m.name, m.text?decrypt(m.text):"📷 Media");});
 socket.on('history',a=>a.forEach(addMsg));
 function addMsg(m){
  let d=document.createElement('div');d.className='msg';d.id='m-'+m.mid;
- d.innerHTML=`<b>${m.name}</b><br>${m.text}${m.image?`<br><img src="${m.image}" style="max-width:200px;border-radius:10px;margin-top:5px">`:''}<br><small>${m.time} ${m.ticks} <span onclick="del('${m.mid}')" style="color:#f55;cursor:pointer">🗑️ Delete</span></small>`;
+ let text=m.text?decrypt(m.text):'';
+ let media='';
+ if(m.image){
+  if(m.image.startsWith('data:video')) media=`<video src="${m.image}" controls class="chat-vid"></video>`;
+  else media=`<img src="${m.image}" class="chat-img">`;
+ }
+ d.innerHTML=`<b>${m.name}</b> 🔒<br>${text}${media}<br><small>${m.time} ${m.ticks} <span onclick="del('${m.mid}')" style="color:#f55;cursor:pointer">🗑️ Delete</span></small>`;
  document.getElementById('msgs').appendChild(d);
  document.getElementById('msgs').scrollTop=99999;
 }
-function send(){let i=document.getElementById('msgInput');if(!i.value.trim())return;socket.emit('message',{name:myName,text:i.value});i.value='';}
+function send(){let i=document.getElementById('msgInput');if(!i.value.trim())return;let enc=encrypt(i.value);socket.emit('message',{name:myName,text:enc});i.value='';}
 document.getElementById('msgInput').addEventListener('keydown',e=>{if(e.key==='Enter')send();});
 function del(mid){socket.emit('deleteMsg',mid);}
 socket.on('deleteMsg',mid=>{let e=document.getElementById('m-'+mid);if(e)e.remove();});
-function addEmoji(){let e=['😊','😂','❤️','🔥','👍','😍','🙏','🎉'];let p=prompt('Pick: '+e.join(' '));if(p)document.getElementById('msgInput').value+=p;}
+function addEmoji(){let e=['😊','😂','❤️','🔥','👍','😍','🙏','🎉'];let p=prompt('Pick emoji: '+e.join(' '));if(p)document.getElementById('msgInput').value+=p;}
 function pickImg(){document.getElementById('imgFile').click();}
 document.getElementById('imgFile').onchange=e=>{
- let f=e.target.files[0];let r=new FileReader();r.onload=()=>{socket.emit('message',{name:myName,text:'',image:r.result});};r.readAsDataURL(f);
+ let f=e.target.files[0];if(f.size>8*1024*1024){alert("File too big - max 8MB");return;}
+ let r=new FileReader();r.onload=()=>{socket.emit('message',{name:myName,text:encrypt(''),image:r.result});};r.readAsDataURL(f);
 };
 let rec,recs=[];
 document.getElementById('micBtn').onclick=async()=>{
  if(!rec||rec.state==='inactive'){
   let s=await navigator.mediaDevices.getUserMedia({audio:true});rec=new MediaRecorder(s);recs=[];
   rec.ondataavailable=x=>recs.push(x.data);
-  rec.onstop=()=>{let b=new Blob(recs);let u=URL.createObjectURL(b);let a=new Audio(u);a.controls=true;document.getElementById('msgs').appendChild(a);};
+  rec.onstop=()=>{let b=new Blob(recs);let r=new FileReader();r.onload=()=>{socket.emit('message',{name:myName,text:encrypt('🎤 Voice note'),image:r.result});};r.readAsDataURL(b);};
   rec.start();document.getElementById('micBtn').innerText='⏹️';
  }else{rec.stop();document.getElementById('micBtn').innerText='🎤';}
 };
-function postSt(){let v=document.getElementById('stInput').value;if(!v)return;socket.emit('postStatus',{name:myName,text:v});document.getElementById('stInput').value='';}
+function postSt(){
+ let v=document.getElementById('stInput').value;
+ let f=document.getElementById('stFile').files[0];
+ if(!v&&!f){alert("Add text or photo/video");return;}
+ if(f){
+  let r=new FileReader();r.onload=()=>{socket.emit('postStatus',{name:myName,text:v,image:r.result});};r.readAsDataURL(f);
+ }else socket.emit('postStatus',{name:myName,text:v});
+ document.getElementById('stInput').value='';document.getElementById('stFile').value='';
+}
 socket.on('newStatus',s=>{
- let d=document.createElement('div');d.className='msg';d.innerHTML=`<b>${s.name}</b> - ${s.time}<br>${s.text}`;
- document.getElementById('statusList').appendChild(d);notify('New Status from '+s.name,s.text);
+ let d=document.createElement('div');d.className='msg';
+ let media=s.image?(s.image.startsWith('data:video')?`<video src="${s.image}" controls class="chat-vid"></video>`:`<img src="${s.image}" class="chat-img">`):'';
+ d.innerHTML=`<b>${s.name}</b> - ${s.time}<br>${s.text}${media}`;
+ document.getElementById('statusList').appendChild(d);notify('Status '+s.name,s.text||'Media');
 });
-socket.on('statusHistory',a=>a.forEach(s=>{let d=document.createElement('div');d.className='msg';d.innerHTML=`<b>${s.name}</b><br>${s.text}`;document.getElementById('statusList').appendChild(d);}));
+socket.on('statusHistory',a=>a.forEach(s=>{
+ let d=document.createElement('div');d.className='msg';
+ let media=s.image?(s.image.startsWith('data:video')?`<video src="${s.image}" controls class="chat-vid"></video>`:`<img src="${s.image}" class="chat-img">`):'';
+ d.innerHTML=`<b>${s.name}</b><br>${s.text}${media}`;document.getElementById('statusList').appendChild(d);
+}));
 function createG(){let n=document.getElementById('gName').value;if(!n)return;socket.emit('createGroup',n);document.getElementById('gName').value='';}
 socket.on('groups',gs=>{let l=document.getElementById('gList');l.innerHTML='';gs.forEach(g=>{let d=document.createElement('div');d.className='msg';d.innerText='👥 '+g.name;l.appendChild(d);});});
 </script></body></html>
