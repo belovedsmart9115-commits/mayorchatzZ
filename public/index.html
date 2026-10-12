@@ -5,38 +5,37 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>MayorChatZ</title>
 <link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#0a9c7a">
+<meta name="theme-color" content="#ff2e8a">
 <script src="/socket.io/socket.io.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:Arial;background:#0f1a1e;color:#fff;height:100vh;display:flex;flex-direction:column}
-header{background:#1a2c33;padding:12px;display:flex;justify-content:space-between;align-items:center}
-.tabs{display:flex;background:#1a2c33}
+body{font-family:Arial;background:#13051a;color:#fff;height:100vh;display:flex;flex-direction:column}
+header{background:#1f0a2e;padding:12px;display:flex;justify-content:space-between;align-items:center}
+.tabs{display:flex;background:#1f0a2e}
 .tabs div{flex:1;text-align:center;padding:12px;cursor:pointer;border-bottom:3px solid transparent}
-.tabs div.active{border-bottom:3px solid #0a9c7a;color:#0a9c7a}
+.tabs div.active{border-bottom:3px solid #ff2e8a;color:#ff2e8a}
 .page{display:none;flex:1;overflow:auto;padding:10px}
 .page.active{display:flex;flex-direction:column}
 #chatBox{flex:1;overflow:auto;display:flex;flex-direction:column;gap:8px}
-.msg{max-width:75%;padding:8px 10px;border-radius:8px;position:relative}
-.me{background:#0a9c7a;align-self:flex-end}
-.other{background:#1f3a44;align-self:flex-start}
-.meta{font-size:11px;opacity:0.7;margin-bottom:3px}
-.inputBar{display:flex;gap:6px;padding:8px;background:#1a2c33;align-items:center}
-.inputBar input{flex:1;padding:10px;border-radius:20px;border:none;outline:none}
-.inputBar button{padding:10px 14px;border:none;border-radius:50%;background:#0a9c7a;color:#fff;cursor:pointer}
+.msg{max-width:75%;padding:8px 10px;border-radius:12px;position:relative;word-break:break-word}
+.me{background:#ff2e8a;align-self:flex-end}
+.other{background:#2a1540;align-self:flex-start}
+.meta{font-size:11px;opacity:0.8;margin-bottom:3px}
+.inputBar{display:flex;gap:6px;padding:8px;background:#1f0a2e;align-items:center}
+.inputBar input{flex:1;padding:11px;border-radius:22px;border:none;outline:none}
+.inputBar button{padding:11px 14px;border:none;border-radius:50%;background:#ff2e8a;color:#fff;cursor:pointer;font-weight:bold}
 img.chat-img{max-width:200px;border-radius:8px;margin-top:4px}
-video.chat-vid{max-width:200px;border-radius:8px;margin-top:4px}
+video.chat-vid{max-width:220px;border-radius:8px;margin-top:4px}
 audio{width:200px;margin-top:4px}
-.statusItem{display:flex;align-items:center;gap:10px;padding:8px;background:#1f3a44;margin-bottom:6px;border-radius:8px}
-.sCircle{width:45px;height:45px;border-radius:50%;border:2px solid #0a9c7a;display:flex;align-items:center;justify-content:center;font-weight:bold}
+.statusItem{display:flex;align-items:flex-start;gap:10px;padding:10px;background:#2a1540;margin-bottom:8px;border-radius:12px}
+.sCircle{width:42px;height:42px;border-radius:50%;border:2px solid #ff2e8a;display:flex;align-items:center;justify-content:center;font-weight:bold;background:#1f0a2e;flex-shrink:0}
 </style>
 </head>
 <body>
 <header>
-<div>MayorChatZ</div>
-<div style="display:flex;gap:10px"><div onclick="copyLink()">🔗</div><div id="online">● 0</div></div>
+<div style="font-weight:bold">MayorChatZ</div>
+<div style="display:flex;gap:12px"><div onclick="copyLink()">🔗</div><div id="online">● 1</div></div>
 </header>
-
 <div class="tabs">
 <div id="tab-chats" class="active" onclick="showPage('chats')">💬 Chats</div>
 <div id="tab-status" onclick="showPage('status')">📸 Status</div>
@@ -44,8 +43,7 @@ audio{width:200px;margin-top:4px}
 </div>
 
 <div id="page-chats" class="page active">
-<div id="onlineStatus" style="font-size:12px;opacity:0.7"></div>
-<div id="typing" style="display:none;color:#0a9c7a;font-style:italic;margin:4px 0;font-size:13px"></div>
+<div id="typing" style="display:none;color:#ff2e8a;font-style:italic;margin:4px 0;font-size:13px"></div>
 <div id="chatBox"></div>
 <div class="inputBar">
 <button onclick="document.getElementById('fileInput').click()">📎</button>
@@ -76,19 +74,16 @@ audio{width:200px;margin-top:4px}
 
 <script>
 const socket=io();
-let myName=localStorage.getItem('mc_name')||prompt('Your name:')||'Anon';
+let myName=localStorage.getItem('mc_name')||prompt('Your name:')||'DE mayors';
 localStorage.setItem('mc_name',myName);
 socket.emit('setName',myName);
-
 if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js');}
-
 function showPage(p){
 document.querySelectorAll('.page').forEach(e=>e.classList.remove('active'));
 document.querySelectorAll('.tabs div').forEach(e=>e.classList.remove('active'));
 document.getElementById('page-'+p).classList.add('active');
 document.getElementById('tab-'+p).classList.add('active');
 }
-
 const chatBox=document.getElementById('chatBox');
 const msgInput=document.getElementById('msgInput');
 let typingTimeout;
@@ -112,13 +107,12 @@ function addMsg(m){
   else if(m.type==='video') content+=`<video class="chat-vid" controls src="${m.data}"></video>`;
   else if(m.type==='voice') content+=`<audio controls src="${m.data}"></audio>`;
   content+=`<div>${m.text||''}</div>`;
-  if(m.name===myName) content+=`<div style="font-size:11px;text-align:right;cursor:pointer" onclick="delMsg('${m.mid}')">🗑️</div>`;
+  if(m.name===myName) content+=`<div style="font-size:11px;text-align:right;cursor:pointer;margin-top:4px" onclick="delMsg('${m.mid}')">🗑️</div>`;
   d.innerHTML=content;
   chatBox.appendChild(d);
   chatBox.scrollTop=chatBox.scrollHeight;
   document.getElementById('typing').style.display='none';
 }
-
 function sendMsg(){
   const txt=msgInput.value.trim();
   if(!txt) return;
@@ -127,104 +121,85 @@ function sendMsg(){
   msgInput.value='';
   socket.emit('stopTyping');
 }
-
 const fileInput=document.getElementById('fileInput');
 fileInput.onchange=()=>{
-  const file=fileInput.files[0];
-  if(!file) return;
+  const file=fileInput.files[0]; if(!file) return;
+  if(file.size>30*1024*1024){ alert('Video too big! Max 30MB for Chat'); return; }
   const reader=new FileReader();
   reader.onload=e=>{
-    const type=file.type.startsWith('image')?'image':'video';
+    const type=file.type.startsWith('image')?'image':file.type.startsWith('video')?'video':'image';
     const m={mid:Date.now(),name:myName,text:'',time:new Date().toLocaleTimeString(),type:type,data:e.target.result};
     socket.emit('message',m);
   };
   reader.readAsDataURL(file);
 };
-
-// Voice
 let recorder,chunks=[],isRec=false;
 async function toggleVoice(){
   const btn=document.getElementById('micBtn');
   if(!isRec){
-    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
-    recorder=new MediaRecorder(stream);
-    chunks=[];
-    recorder.ondataavailable=e=>chunks.push(e.data);
-    recorder.onstop=()=>{
-      const blob=new Blob(chunks,{type:'audio/webm'});
-      const reader=new FileReader();
-      reader.onload=e=>{
-        const m={mid:Date.now(),name:myName,text:'🎤 Voice',time:new Date().toLocaleTimeString(),type:'voice',data:e.target.result};
-        socket.emit('message',m);
+    try{
+      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      recorder=new MediaRecorder(stream); chunks=[];
+      recorder.ondataavailable=e=>chunks.push(e.data);
+      recorder.onstop=()=>{
+        const blob=new Blob(chunks,{type:'audio/webm'});
+        const reader=new FileReader();
+        reader.onload=e=>{
+          const m={mid:Date.now(),name:myName,text:'🎤 Voice',time:new Date().toLocaleTimeString(),type:'voice',data:e.target.result};
+          socket.emit('message',m);
+        };
+        reader.readAsDataURL(blob);
       };
-      reader.readAsDataURL(blob);
-    };
-    recorder.start();
-    isRec=true;
-    btn.innerText='⏹️';
-    btn.style.background='red';
-  }else{
-    recorder.stop();
-    isRec=false;
-    btn.innerText='🎤';
-    btn.style.background='#0a9c7a';
-  }
+      recorder.start(); isRec=true; btn.innerText='⏹️'; btn.style.background='red';
+    }catch{alert('Mic permission denied');}
+  }else{recorder.stop(); isRec=false; btn.innerText='🎤'; btn.style.background='#ff2e8a';}
 }
-
 function delMsg(id){socket.emit('deleteMsg',id);}
-
 socket.on('message',addMsg);
 socket.on('history',arr=>{chatBox.innerHTML='';arr.forEach(addMsg);});
 socket.on('deleteMsg',id=>{const el=document.getElementById('m-'+id); if(el) el.remove();});
 socket.on('online',n=>{document.getElementById('online').innerText='● '+n;});
 
-// Status
+// STATUS WITH VIDEO FIX
 function postStatus(){
   const txt=document.getElementById('statusInput').value.trim();
-  if(!txt && !window.statusData) return;
+  if(!txt && !window.statusData){ alert('Write something or attach file'); return; }
   const st={id:Date.now(),name:myName,text:txt,time:new Date().toLocaleTimeString(),data:window.statusData||null,type:window.statusType||'text'};
   socket.emit('postStatus',st);
-  document.getElementById('statusInput').value=''; window.statusData=null;
+  document.getElementById('statusInput').value=''; window.statusData=null; window.statusType=null;
 }
 document.getElementById('statusFile').onchange=e=>{
   const f=e.target.files[0]; if(!f) return;
+  if(f.size>15*1024*1024){ alert('Video too big for Status! Max 15MB. Trim am small'); return; }
   const r=new FileReader();
-  r.onload=ev=>{window.statusData=ev.target.result; window.statusType=f.type.startsWith('image')?'image':'video'; alert('File ready, tap Post');};
+  r.onload=ev=>{window.statusData=ev.target.result; window.statusType=f.type.startsWith('image')?'image':'video'; alert('File ready ✅ Now tap Post');};
   r.readAsDataURL(f);
 };
 function addStatus(s){
   const box=document.getElementById('statusBox');
-  const d=document.createElement('div');
-  d.className='statusItem';
+  const d=document.createElement('div'); d.className='statusItem';
   let media='';
-  if(s.type==='image') media=`<img style="width:100%;border-radius:8px;margin-top:4px" src="${s.data}">`;
-  if(s.type==='video') media=`<video style="width:100%;border-radius:8px" controls src="${s.data}"></video>`;
-  d.innerHTML=`<div class="sCircle">${s.name[0]}</div><div><b>${s.name}</b><br><small>${s.time}</small><div>${s.text}</div>${media}</div>`;
+  if(s.type==='image'&&s.data) media=`<img style="width:100%;border-radius:10px;margin-top:6px" src="${s.data}">`;
+  if(s.type==='video'&&s.data) media=`<video style="width:100%;border-radius:10px;margin-top:6px" controls src="${s.data}"></video>`;
+  d.innerHTML=`<div class="sCircle">${s.name[0].toUpperCase()}</div><div style="flex:1"><b>${s.name}</b><br><small>${s.time}</small><div style="margin-top:4px">${s.text||''}</div>${media}</div>`;
   box.prepend(d);
 }
 socket.on('newStatus',addStatus);
 socket.on('statusHistory',arr=>{document.getElementById('statusBox').innerHTML='';arr.forEach(addStatus);});
-
-// Groups
 function createGroup(){
   const n=document.getElementById('groupInput').value.trim();
-  if(!n) return;
-  socket.emit('createGroup',n);
-  document.getElementById('groupInput').value='';
+  if(!n) return; socket.emit('createGroup',n); document.getElementById('groupInput').value='';
 }
 socket.on('groups',arr=>{
-  const b=document.getElementById('groupBox');
-  b.innerHTML='';
+  const b=document.getElementById('groupBox'); b.innerHTML='';
   arr.forEach(g=>{
-    const d=document.createElement('div');
-    d.className='statusItem';
+    const d=document.createElement('div'); d.className='statusItem';
     d.innerHTML=`<div class="sCircle">👥</div><div>${g.name}</div>`;
     b.appendChild(d);
   });
 });
-
 function copyLink(){navigator.clipboard.writeText(location.href); alert('Link copied!');}
-document.getElementById('msgInput').addEventListener('keydown',e=>{if(e.key==='Enter') sendMsg();});
+msgInput.addEventListener('keydown',e=>{if(e.key==='Enter') sendMsg();});
 </script>
 </body>
- </html>
+  </html>
