@@ -1,36 +1,86 @@
-<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>MayorChatZ V4</title><style>*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui}body{background:#111b21;color:#fff;height:100vh;display:flex;flex-direction:column}.top{display:flex;background:#202c33;padding:10px;gap:12px;align-items:center;overflow-x:auto}.top b{color:#8696a0;cursor:pointer;white-space:nowrap;padding:6px 10px;border-radius:20px}.top b.active{color:#fff;background:#00a884}.copy{background:#25d366;color:#000;padding:6px 12px;border-radius:20px;font-size:12px;cursor:pointer;border:none}#chats,#statusPage,#groupsPage{flex:1;overflow-y:auto;padding:10px;background:#0b141a;display:none}#chats.active,#statusPage.active,#groupsPage.active{display:block}.msg{max-width:82%;padding:8px 12px;border-radius:10px;margin:8px 0;position:relative;word-break:break-word}.own{background:#005c4b;margin-left:auto}.other{background:#202c33}.name{font-size:11px;color:#53bdeb;font-weight:700;margin-bottom:3px}.small{font-size:10px;opacity:.6;float:right;margin-left:10px;margin-top:4px}.msg img{max-width:100%;border-radius:8px;margin-top:6px}.status,.group{background:#202c33;padding:12px;border-radius:12px;margin:8px 0}.bottom{display:flex;gap:6px;padding:8px;background:#202c33;align-items:center}.bottom input{flex:1;padding:12px 16px;border-radius:25px;border:none;background:#2a3942;color:#fff;outline:none;font-size:15px}.icon{width:44px;height:44px;border-radius:50%;background:#2a3942;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:22px;flex-shrink:0}.send{background:#00a884}.recording{background:#f15c6d!important;animation:pulse 1s infinite}@keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.1)}100%{transform:scale(1)}}.emojiBox{display:none;position:absolute;bottom:70px;left:8px;background:#202c33;padding:10px;border-radius:14px;flex-wrap:wrap;gap:8px;width:270px;z-index:99}.emojiBox span{font-size:24px;cursor:pointer}audio{width:200px;height:36px;margin-top:6px}.del{color:#f15c6d;font-size:11px;cursor:pointer;margin-top:4px;display:inline-block}</style></head><body>
-<div class="top"><b id="tabChat" class="active">💬 Chats</b><b id="tabStatus">📸 Status</b><b id="tabGroups">👥 Groups</b><button class="copy" id="copyBtn">🔗 Copy Link</button><span id="online" style="margin-left:auto;font-size:12px;color:#25d366"></span></div>
-<div id="chats" class="active"></div>
-<div id="statusPage"><div style="display:flex;gap:8px;margin-bottom:12px"><input id="statusInput" placeholder="Post status..."><div class="icon" id="statusImgBtn">📷</div><div class="icon send" id="statusSend">➤</div></div><div id="statusList"></div></div>
-<div id="groupsPage"><div style="display:flex;gap:8px;margin-bottom:12px"><input id="groupInput" placeholder="New group name..."><div class="icon send" id="groupCreate">➕</div></div><div id="groupList"></div></div>
-<div class="bottom" id="chatBar"><div class="icon" id="emojiBtn">😊</div><div class="icon" id="imgBtn">📷</div><input id="msgInput" placeholder="Type a message"><div class="icon" id="micBtn">🎤</div><div class="icon send" id="sendBtn">➤</div><div class="emojiBox" id="emojiBox"></div><input type="file" id="fileInput" accept="image/*,video/*" hidden><input type="file" id="statusFile" accept="image/*,video/*" hidden></div>
-<script src="/socket.io/socket.io.js"></script><script>
+<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MayorChatZ</title><style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:sans-serif}
+body{background:#111b21;color:#fff;height:100vh;display:flex;flex-direction:column}
+#top{background:#202c33;padding:10px;display:flex;gap:10px;align-items:center}
+#top button{padding:6px 10px;border:0;border-radius:6px;background:#00a884;color:#fff}
+#pages{flex:1;overflow:hidden;position:relative}
+.page{position:absolute;inset:0;display:none;flex-direction:column}
+.page.active{display:flex}
+#msgs{flex:1;overflow-y:auto;padding:10px}
+.msg{background:#202c33;margin:6px 0;padding:8px 10px;border-radius:8px;max-width:80%}
+#bar{background:#202c33;padding:8px;display:flex;gap:8px;align-items:center}
+#bar button{background:0;border:0;font-size:22px;color:#fff}
+#bar input{flex:1;padding:10px;border-radius:20px;border:0;outline:0}
+</style></head><body>
+<div id="top">
+<button onclick="show('chat')">💬 Chats</button>
+<button onclick="show('status')">📸 Status</button>
+<button onclick="show('groups')">👥 Groups</button>
+<button id="copyBtn">🔗 Copy</button>
+<span id="on"></span>
+</div>
+<div id="pages">
+<div id="chatPage" class="page active"><div id="msgs"></div></div>
+<div id="statusPage" class="page"><div id="statusList" style="padding:10px"></div>
+<input id="stInput" placeholder="Post status..." style="margin:10px;padding:10px;border-radius:10px;border:0;width:90%">
+<button onclick="postSt()" style="margin:10px;padding:8px 15px;background:#00a884;border:0;border-radius:6px;color:#fff">Post Status</button>
+</div>
+<div id="groupsPage" class="page"><div id="gList" style="padding:10px"></div>
+<div style="padding:10px;display:flex;gap:5px"><input id="gName" placeholder="New group name" style="flex:1;padding:10px;border-radius:10px;border:0"><button onclick="createG()" style="padding:10px;background:#00a884;border:0;border-radius:6px;color:#fff">➕</button></div>
+</div>
+</div>
+<div id="bar">
+<button onclick="addEmoji()">😊</button>
+<button onclick="pickImg()">📷</button>
+<input id="msgInput" placeholder="Type message...">
+<button id="micBtn">🎤</button>
+<button onclick="send()">➤</button>
+</div>
+<input type="file" id="imgFile" hidden accept="image/*">
+<script src="/socket.io/socket.io.js"></script>
+<script>
 const MY_LINK="https://mayorchatzZ.onrender.com";
-document.getElementById('copyBtn').onclick=()=>{navigator.clipboard.writeText(MY_LINK);alert("✅ Link Copied!\n"+MY_LINK);};
-const socket=io();let myName=localStorage.getItem('mayorName')||prompt('Your name?')||'Anon';localStorage.setItem('mayorName',myName);
-if(Notification&&Notification.permission!=="granted")Notification.requestPermission();
-const chats=document.getElementById('chats'),statusPage=document.getElementById('statusPage'),groupsPage=document.getElementById('groupsPage'),onlineEl=document.getElementById('online');
-const msgInput=document.getElementById('msgInput'),sendBtn=document.getElementById('sendBtn'),emojiBtn=document.getElementById('emojiBtn'),emojiBox=document.getElementById('emojiBox');
-const imgBtn=document.getElementById('imgBtn'),fileInput=document.getElementById('fileInput'),micBtn=document.getElementById('micBtn');
-const tabChat=document.getElementById('tabChat'),tabStatus=document.getElementById('tabStatus'),tabGroups=document.getElementById('tabGroups');
-const statusInput=document.getElementById('statusInput'),statusList=document.getElementById('statusList'),statusSend=document.getElementById('statusSend'),statusImgBtn=document.getElementById('statusImgBtn'),statusFile=document.getElementById('statusFile');
-const groupInput=document.getElementById('groupInput'),groupCreate=document.getElementById('groupCreate'),groupList=document.getElementById('groupList'),chatBar=document.getElementById('chatBar');
-['😊','😂','❤️','🔥','😭','😍','👍','🙏','💯','🎉','😎','🥺','😅','🤣'].forEach(e=>{let s=document.createElement('span');s.textContent=e;s.onclick=()=>msgInput.value+=e;emojiBox.appendChild(s);});
-emojiBtn.onclick=()=>emojiBox.style.display=emojiBox.style.display==='flex'?'none':'flex';
-function notify(m){if(document.hidden&&Notification.permission==="granted"&&m.id!==socket.id){new Notification(m.name+': '+(m.text||'New media'),{body:m.text||'📷 🎤 New message'});}}
-function addMsg(m){if(document.getElementById('mid-'+m.mid))return;const d=document.createElement('div');d.id='mid-'+m.mid;d.className='msg '+(m.id===socket.id?'own':'other');let media='';if(m.image){if(m.image.includes('audio'))media=`<audio controls src="${m.image}"></audio>`;else if(m.image.startsWith('data:video'))media=`<video src="${m.image}" controls style="max-width:100%;border-radius:8px;margin-top:5px"></video>`;else media=`<img src="${m.image}">`;}let delBtn=m.id===socket.id?`<div class="del" onclick="socket.emit('deleteMsg','${m.mid}')">🗑️ Delete</div>`:'';d.innerHTML=`${m.id!==socket.id?`<div class="name">${m.name}</div>`:''}${m.text?`<div>${m.text}</div>`:''}${media}${delBtn}<span class="small">${m.time} ${m.id===socket.id?m.ticks:''}</span>`;d.oncontextmenu=e=>{e.preventDefault();if(m.id===socket.id&&confirm('Delete for everyone?'))socket.emit('deleteMsg',m.mid);};chats.appendChild(d);chats.scrollTop=chats.scrollHeight;notify(m);}
-function addStatus(s,pre=false){const d=document.createElement('div');d.className='status';let media=s.image?(s.image.startsWith('data:video')?`<video src="${s.image}" controls style="width:100%;border-radius:8px"></video>`:`<img src="${s.image}" style="max-width:100%;border-radius:8px">`):'';d.innerHTML=`<div class="name">${s.name} <small>${s.time}</small></div>${s.text?`<div>${s.text}</div>`:''}${media}`;if(pre)statusList.prepend(d);else statusList.appendChild(d);}
-function renderGroups(gs){groupList.innerHTML='';gs.forEach(g=>{let div=document.createElement('div');div.className='group';div.innerHTML=`👥 <b>${g.name}</b><br><small>${g.id}</small>`;groupList.appendChild(div);});}
-socket.on('history',a=>{chats.innerHTML='';a.forEach(addMsg)});socket.on('message',addMsg);socket.on('deleteMsg',mid=>{let el=document.getElementById('mid-'+mid);if(el)el.remove();});
-socket.on('statusHistory',a=>{statusList.innerHTML='';a.forEach(s=>addStatus(s))});socket.on('newStatus',s=>addStatus(s,true));socket.on('online',n=>onlineEl.textContent=n+' online');socket.on('groups',renderGroups);socket.emit('setName',myName);
-function sendMsg(){let t=msgInput.value.trim();if(!t)return;socket.emit('message',{text:t,name:myName});msgInput.value='';emojiBox.style.display='none';}
-sendBtn.onclick=sendMsg;msgInput.addEventListener('keydown',e=>{if(e.key==='Enter')sendMsg()});
-imgBtn.onclick=()=>fileInput.click();fileInput.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>socket.emit('message',{image:r.result,name:myName,text:msgInput.value});r.readAsDataURL(f);msgInput.value='';};
-let recorder,chunks=[];micBtn.onclick=async()=>{if(micBtn.classList.contains('recording')){recorder.stop();micBtn.classList.remove('recording');micBtn.textContent='🎤';return;}try{let stream=await navigator.mediaDevices.getUserMedia({audio:true});recorder=new MediaRecorder(stream);chunks=[];recorder.ondataavailable=e=>chunks.push(e.data);recorder.onstop=()=>{let blob=new Blob(chunks,{type:'audio/webm'});let reader=new FileReader();reader.onload=()=>socket.emit('message',{image:reader.result,name:myName});reader.readAsDataURL(blob);stream.getTracks().forEach(t=>t.stop());};recorder.start();micBtn.classList.add('recording');micBtn.textContent='⏹️';}catch(err){alert('Mic denied')}};
-tabChat.onclick=()=>{tabChat.classList.add('active');tabStatus.classList.remove('active');tabGroups.classList.remove('active');chats.classList.add('active');statusPage.classList.remove('active');groupsPage.classList.remove('active');chatBar.style.display='flex';};
-tabStatus.onclick=()=>{tabStatus.classList.add('active');tabChat.classList.remove('active');tabGroups.classList.remove('active');statusPage.classList.add('active');chats.classList.remove('active');groupsPage.classList.remove('active');chatBar.style.display='none';};
-tabGroups.onclick=()=>{tabGroups.classList.add('active');tabChat.classList.remove('active');tabStatus.classList.remove('active');groupsPage.classList.add('active');chats.classList.remove('active');statusPage.classList.remove('active');chatBar.style.display='none';};
-function sendStatus(){let t=statusInput.value.trim();if(!t)return;socket.emit('postStatus',{text:t,name:myName});statusInput.value='';}
-statusSend.onclick=sendStatus;statusInput.addEventListener('keydown',e=>{if(e.key==='Enter')sendStatus()});statusImgBtn.onclick=()=>statusFile.click();statusFile.onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>socket.emit('postStatus',{image:r.result,name:myName,text:statusInput.value});r.readAsDataURL(f);statusInput.value='';};
-groupCreate.onclick=()=>{let n=groupInput.value.trim();if(!n)return;socket.emit('createGroup',n);groupInput.value='';};
+const socket=io();
+let myName=prompt("Your name?")||"Anon";
+socket.emit('setName',myName);
+if(Notification&&Notification.permission!=="granted"){Notification.requestPermission();}
+function notify(t,b){if(Notification&&Notification.permission==="granted"){new Notification(t,{body:b});}}
+function show(p){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.getElementById(p+'Page').classList.add('active');}
+document.getElementById('copyBtn').onclick=()=>{navigator.clipboard.writeText(MY_LINK);alert('✅ Link Copied: '+MY_LINK);};
+socket.on('online',n=>document.getElementById('on').innerText=n+' online');
+socket.on('message',m=>{addMsg(m);notify(m.name,m.text||'📷 Image');});
+socket.on('history',a=>a.forEach(addMsg));
+function addMsg(m){
+ let d=document.createElement('div');d.className='msg';d.id='m-'+m.mid;
+ d.innerHTML=`<b>${m.name}</b><br>${m.text}${m.image?`<br><img src="${m.image}" style="max-width:200px;border-radius:10px;margin-top:5px">`:''}<br><small>${m.time} ${m.ticks} <span onclick="del('${m.mid}')" style="color:#f55;cursor:pointer">🗑️ Delete</span></small>`;
+ document.getElementById('msgs').appendChild(d);
+ document.getElementById('msgs').scrollTop=99999;
+}
+function send(){let i=document.getElementById('msgInput');if(!i.value.trim())return;socket.emit('message',{name:myName,text:i.value});i.value='';}
+document.getElementById('msgInput').addEventListener('keydown',e=>{if(e.key==='Enter')send();});
+function del(mid){socket.emit('deleteMsg',mid);}
+socket.on('deleteMsg',mid=>{let e=document.getElementById('m-'+mid);if(e)e.remove();});
+function addEmoji(){let e=['😊','😂','❤️','🔥','👍','😍','🙏','🎉'];let p=prompt('Pick: '+e.join(' '));if(p)document.getElementById('msgInput').value+=p;}
+function pickImg(){document.getElementById('imgFile').click();}
+document.getElementById('imgFile').onchange=e=>{
+ let f=e.target.files[0];let r=new FileReader();r.onload=()=>{socket.emit('message',{name:myName,text:'',image:r.result});};r.readAsDataURL(f);
+};
+let rec,recs=[];
+document.getElementById('micBtn').onclick=async()=>{
+ if(!rec||rec.state==='inactive'){
+  let s=await navigator.mediaDevices.getUserMedia({audio:true});rec=new MediaRecorder(s);recs=[];
+  rec.ondataavailable=x=>recs.push(x.data);
+  rec.onstop=()=>{let b=new Blob(recs);let u=URL.createObjectURL(b);let a=new Audio(u);a.controls=true;document.getElementById('msgs').appendChild(a);};
+  rec.start();document.getElementById('micBtn').innerText='⏹️';
+ }else{rec.stop();document.getElementById('micBtn').innerText='🎤';}
+};
+function postSt(){let v=document.getElementById('stInput').value;if(!v)return;socket.emit('postStatus',{name:myName,text:v});document.getElementById('stInput').value='';}
+socket.on('newStatus',s=>{
+ let d=document.createElement('div');d.className='msg';d.innerHTML=`<b>${s.name}</b> - ${s.time}<br>${s.text}`;
+ document.getElementById('statusList').appendChild(d);notify('New Status from '+s.name,s.text);
+});
+socket.on('statusHistory',a=>a.forEach(s=>{let d=document.createElement('div');d.className='msg';d.innerHTML=`<b>${s.name}</b><br>${s.text}`;document.getElementById('statusList').appendChild(d);}));
+function createG(){let n=document.getElementById('gName').value;if(!n)return;socket.emit('createGroup',n);document.getElementById('gName').value='';}
+socket.on('groups',gs=>{let l=document.getElementById('gList');l.innerHTML='';gs.forEach(g=>{let d=document.createElement('div');d.className='msg';d.innerText='👥 '+g.name;l.appendChild(d);});});
 </script></body></html>
