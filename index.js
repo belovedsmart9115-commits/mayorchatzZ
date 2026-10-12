@@ -4,7 +4,8 @@ const {Server}=require('socket.io');
 const app=express();
 const server=http.createServer(app);
 const io=new Server(server,{
-maxHttpBufferSize:52428800
+maxHttpBufferSize:52428800,
+cors:{origin:"*"}
 });
 app.use(express.static('public'));
 let messages=[],statuses=[],groups=[],online=0;
@@ -29,6 +30,7 @@ io.emit('deleteMsg',mid);
 s.on('postStatus',st=>{
 st.time=new Date().toLocaleTimeString();
 statuses.push(st);
+if(statuses.length>50)statuses.shift();
 io.emit('newStatus',st);
 });
 s.on('createGroup',name=>{
@@ -40,4 +42,4 @@ s.on('disconnect',()=>{
 online--;io.emit('online',online);
 });
 });
-server.listen(10000,()=>console.log('Live'));
+server.listen(10000,()=>console.log('MayorChatZ V7 Live'));
