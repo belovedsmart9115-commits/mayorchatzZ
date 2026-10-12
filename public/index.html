@@ -1,124 +1,112 @@
 <!DOCTYPE html>
-<html>
-<head>
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MayorChatZ</title>
-<script src="/socket.io/socket.io.js"></script>
-<style>
+<html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>MayorChatZ</title><script src="/socket.io/socket.io.js"></script><style>
 body{background:#0f1a1e;color:#fff;font-family:sans-serif;margin:0;padding:10px}
 button{background:#0a9c7a;color:#fff;border:0;padding:8px 14px;border-radius:20px;margin:3px;font-weight:bold}
 .active{background:#fff;color:#0a9c7a}
 .view{display:none}.view.show{display:block}
 .card{background:#1d2b31;padding:10px;margin:8px 0;border-radius:12px}
 img,video{max-width:100%;border-radius:10px;margin-top:6px}
+audio{width:100%;margin-top:6px}
 input{width:92%;padding:12px;border-radius:10px;border:0;margin:6px 0;background:#1d2b31;color:#fff}
-#msgList{height:60vh;overflow-y:auto}
-</style>
-</head>
-<body>
-<div>
-<button id="bChats" class="active" onclick="showTab('chats')">💬 Chats</button>
-<button id="bStatus" onclick="showTab('status')">📸 Status</button>
-<button id="bGroups" onclick="showTab('groups')">👥 Groups</button>
-<button onclick="copyLink()">🔗 Copy</button>
-</div>
+#msgList{height:55vh;overflow-y:auto}
+.chatBar{display:flex;gap:5px;align-items:center}
+.iconBtn{font-size:20px;padding:8px 10px;background:#1d2b31}
+</style></head><body>
+<div><button id="bChats" class="active" onclick="showTab('chats')">💬 Chats</button><button id="bStatus" onclick="showTab('status')">📷 Status</button><button id="bGroups" onclick="showTab('groups')">👥 Groups</button><button onclick="copyLink()">🔗 Copy</button></div>
 <div id="online" style="margin:8px 0">1 online</div>
 <div style="color:#0f9;background:#1d2b31;padding:8px;border-radius:8px">🔒 End-to-end encrypted • MayorChatZ Secure</div>
 
-<!-- CHATS VIEW -->
 <div id="chatsView" class="view show">
 <div id="msgList"></div>
-<input id="msgInput" placeholder="Type a message...">
-<button onclick="sendMsg()" style="width:98%">Send ➤</button>
+<div class="chatBar">
+<button class="iconBtn" onclick="document.getElementById('chatFile').click()">📎</button>
+<button class="iconBtn" id="recBtn" onclick="toggleRec()">🎤</button>
+<input id="msgInput" placeholder="Type a message..." style="flex:1">
+</div>
+<input type="file" id="chatFile" accept="image/*,video/*" style="display:none" onchange="sendFile(this)">
+<button onclick="sendMsg()" style="width:98%;margin-top:6px">Send ➤</button>
+<div id="recStatus" style="text-align:center;color:#ff4444;display:none">🔴 Recording... tap 🎤 to stop</div>
 </div>
 
-<!-- STATUS VIEW -->
 <div id="statusView" class="view">
 <div id="statusList"></div>
 <input id="textStatus" placeholder="Post text status...">
 <input type="file" id="fileInput" accept="image/*,video/*" style="display:none" onchange="postFile(this)">
-<div style="display:flex;gap:6px">
-<button onclick="document.getElementById('fileInput').click()" style="flex:1">📷 Photo/Video Status</button>
-<button onclick="postText()" style="flex:1">Post Status</button>
-</div>
+<div style="display:flex;gap:6px"><button onclick="document.getElementById('fileInput').click()" style="flex:1">📷 Photo/Video Status</button><button onclick="postText()" style="flex:1">Post Status</button></div>
 </div>
 
-<!-- GROUPS VIEW -->
 <div id="groupsView" class="view">
-<input id="groupName" placeholder="Group name...">
-<button onclick="createGroup()">Create Group</button>
-<div id="groupList"></div>
+<input id="groupName" placeholder="Group name..."><button onclick="createGroup()">Create Group</button><div id="groupList"></div>
 </div>
 
 <script>
 const socket=io();
 const myName=localStorage.getItem('username')||prompt('Your name?')||'DE mayors';
 localStorage.setItem('username',myName);
-
-function showTab(t){
-document.querySelectorAll('.view').forEach(v=>v.classList.remove('show'));
-document.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
-document.getElementById(t+'View').classList.add('show');
-document.getElementById('b'+t.charAt(0).toUpperCase()+t.slice(1)).classList.add('active');
-}
-function copyLink(){navigator.clipboard.writeText(window.location.origin);alert('Link copied: '+window.location.origin);}
-
+function showTab(t){document.querySelectorAll('.view').forEach(v=>v.classList.remove('show'));document.querySelectorAll('#bChats,#bStatus,#bGroups').forEach(b=>b.classList.remove('active'));document.getElementById(t+'View').classList.add('show');document.getElementById('b'+t.charAt(0).toUpperCase()+t.slice(1)).classList.add('active');}
+function copyLink(){navigator.clipboard.writeText(location.origin);alert('Link copied: '+location.origin);}
 socket.on('connect',()=>socket.emit('setName',myName));
 socket.on('online',n=>document.getElementById('online').innerText=n+' online');
-
-// CHATS
 socket.on('history',a=>a.forEach(addMsg));
 socket.on('message',addMsg);
 socket.on('deleteMsg',id=>{const e=document.getElementById('m'+id); if(e) e.remove();});
-function sendMsg(){
- const v=document.getElementById('msgInput').value; if(!v) return;
- socket.emit('message',{name:myName,text:v});
- document.getElementById('msgInput').value='';
+
+function sendMsg(){const v=document.getElementById('msgInput').value; if(!v) return; socket.emit('message',{mid:Date.now(),name:myName,text:v,time:new Date().toLocaleTimeString(),ticks:'✓✓'}); document.getElementById('msgInput').value='';}
+
+function sendFile(inp){
+ const file=inp.files[0]; if(!file) return;
+ if(file.size>10*1024*1024){alert('Too big! Use <10MB'); return;}
+ const r=new FileReader();
+ r.onload=e=>{
+  const isVideo=file.type.startsWith('video');
+  const isImage=file.type.startsWith('image');
+  socket.emit('message',{mid:Date.now(),name:myName,text:'',media:e.target.result,isVideo,isImage,isFile:true,time:new Date().toLocaleTimeString(),ticks:'✓✓'});
+ };
+ r.readAsDataURL(file); inp.value='';
 }
+
+let recorder, chunks=[], isRec=false;
+async function toggleRec(){
+ const btn=document.getElementById('recBtn'); const st=document.getElementById('recStatus');
+ if(!isRec){
+  try{
+   const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+   recorder=new MediaRecorder(stream); chunks=[];
+   recorder.ondataavailable=e=>chunks.push(e.data);
+   recorder.onstop=()=>{
+    const blob=new Blob(chunks,{type:'audio/webm'});
+    const r=new FileReader(); r.onload=e=>{
+     socket.emit('message',{mid:Date.now(),name:myName,text:'',media:e.target.result,isVoice:true,time:new Date().toLocaleTimeString(),ticks:'✓✓'});
+    }; r.readAsDataURL(blob);
+    stream.getTracks().forEach(t=>t.stop());
+   };
+   recorder.start(); isRec=true; btn.innerText='⏹️'; st.style.display='block';
+  }catch{alert('Mic permission needed');}
+ }else{
+  recorder.stop(); isRec=false; btn.innerText='🎤'; st.style.display='none';
+ }
+}
+
 function addMsg(m){
  const l=document.getElementById('msgList');
  const d=document.createElement('div'); d.className='card'; d.id='m'+m.mid;
- d.innerHTML=`<b>${m.name}</b><br>${m.text}<br><small>${m.time} ${m.ticks||''}</small> <span onclick="socket.emit('deleteMsg',${m.mid})" style="float:right;cursor:pointer">🗑️</span>`;
+ let mediaHtml='';
+ if(m.media){
+  if(m.isVoice) mediaHtml=`<audio src="${m.media}" controls></audio>`;
+  else if(m.isVideo) mediaHtml=`<video src="${m.media}" controls playsinline style="width:100%"></video>`;
+  else mediaHtml=`<img src="${m.media}" style="width:100%">`;
+ }
+ d.innerHTML=`<b>${m.name}</b><br>${m.text||''}${mediaHtml}<br><small>${m.time||''} ${m.ticks||''}</small> <span onclick="if(confirm('Delete?'))socket.emit('deleteMsg',${m.mid})" style="float:right;cursor:pointer">🗑️</span>`;
  l.appendChild(d); l.scrollTop=l.scrollHeight;
 }
 
-// STATUS - WITH VIDEO FIX
+// STATUS
 socket.on('statusHistory',a=>a.forEach(showStatus));
 socket.on('newStatus',showStatus);
-function postText(){
- const t=document.getElementById('textStatus').value; if(!t) return;
- socket.emit('postStatus',{id:Date.now(),name:myName,text:t,media:null,time:new Date().toLocaleTimeString()});
- document.getElementById('textStatus').value='';
-}
-function postFile(inp){
- const file=inp.files[0]; if(!file) return;
- if(file.size>10*1024*1024){alert('Too big! Use 10 sec video (<10MB)'); return;}
- const r=new FileReader();
- r.onload=e=>{
-  socket.emit('postStatus',{id:Date.now(),name:myName,text:document.getElementById('textStatus').value||'God bless you all',media:e.target.result,isVideo:file.type.startsWith('video'),time:new Date().toLocaleTimeString()});
-  document.getElementById('textStatus').value='';
- };
- r.readAsDataURL(file);
-}
-function showStatus(st){
- const list=document.getElementById('statusList');
- const d=document.createElement('div'); d.className='card';
- const media=st.media?(st.isVideo?`<video src="${st.media}" controls playsinline style="width:100%"></video>`:`<img src="${st.media}" style="width:100%">`):'';
- d.innerHTML=`<b>${st.name}</b><br>${st.text||''}<br>${media}<br><small>${st.time||''}</small>`;
- list.prepend(d);
-}
+function postText(){const t=document.getElementById('textStatus').value; if(!t) return; socket.emit('postStatus',{id:Date.now(),name:myName,text:t,media:null,time:new Date().toLocaleTimeString()}); document.getElementById('textStatus').value='';}
+function postFile(inp){const file=inp.files[0]; if(!file) return; if(file.size>10*1024*1024){alert('Too big! Use 10 sec video');return;} const r=new FileReader(); r.onload=e=>{socket.emit('postStatus',{id:Date.now(),name:myName,text:document.getElementById('textStatus').value||'God bless',media:e.target.result,isVideo:file.type.startsWith('video'),time:new Date().toLocaleTimeString()}); document.getElementById('textStatus').value='';}; r.readAsDataURL(file);}
+function showStatus(st){const list=document.getElementById('statusList'); const d=document.createElement('div'); d.className='card'; const media=st.media?(st.isVideo?`<video src="${st.media}" controls playsinline style="width:100%"></video>`:`<img src="${st.media}" style="width:100%">`):''; d.innerHTML=`<b>${st.name}</b><br>${st.text||''}<br>${media}<br><small>${st.time||''}</small>`; list.prepend(d);}
 
-// GROUPS
-socket.on('groups',a=>{
- const l=document.getElementById('groupList'); l.innerHTML='';
- a.forEach(g=>{
-  const d=document.createElement('div'); d.className='card'; d.innerText=g.name; l.appendChild(d);
- });
-});
-function createGroup(){
- const v=document.getElementById('groupName').value; if(!v) return;
- socket.emit('createGroup',v); document.getElementById('groupName').value='';
-}
-</script>
-</body>
-</html>
+socket.on('groups',a=>{const l=document.getElementById('groupList'); l.innerHTML=''; a.forEach(g=>{const d=document.createElement('div'); d.className='card'; d.innerText=g.name; l.appendChild(d);});});
+function createGroup(){const v=document.getElementById('groupName').value; if(!v) return; socket.emit('createGroup',v); document.getElementById('groupName').value='';}
+</script></body></html>
