@@ -8,29 +8,38 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(__dirname));
 
+let messages = [];
 let online = 0;
+
+app.get('/', (req,res)=> res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 io.on('connection', socket => {
   online++;
-  socket.join('General');
   io.emit('online', online);
-  console.log('User connected', socket.id);
+  socket.emit('history', messages);
 
   socket.on('message', data => {
-    io.emit('message', {
+    const msg = {
+      mid: Date.now() + Math.random(), // unique id for delete
       text: data.text,
-      image: data.image || null,
       id: socket.id,
-      time: new Date().toLocaleTimeString()
-    });
+      time: new Date().toLocaleTimeString(),
+      ticks: '✓✓'
+    };
+    messages.push(msg);
+    io.emit('message', msg); // send to ALL once
+  });
+
+  socket.on('deleteMsg', mid => {
+    messages = messages.filter(m => m.mid !== mid);
+    io.emit('deleteMsg', mid);
   });
 
   socket.on('disconnect', () => {
-    online--;
-    io.emit('online', online);
+    online--; io.emit('online', online);
   });
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log('MayorChatZ running on', PORT));
+server.listen(process.env.PORT||10000, '0.0.0.0', ()=>console.log('MayorChatZ LIVE'));
