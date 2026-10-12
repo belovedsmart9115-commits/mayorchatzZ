@@ -10,32 +10,29 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:Arial;background:#13051a;color:#fff;height:100vh;display:flex;flex-direction:column}
-header{background:#1f0a2e;padding:12px;display:flex;justify-content:space-between;align-items:center}
-.tabs{display:flex;background:#1f0a2e}
-.tabs div{flex:1;text-align:center;padding:12px;cursor:pointer;border-bottom:3px solid transparent}
+header{background:#1a0a24;padding:14px 12px;display:flex;justify-content:space-between;align-items:center}
+.tabs{display:flex;background:#1a0a24;border-bottom:1px solid #2a1540}
+.tabs div{flex:1;text-align:center;padding:14px 4px;cursor:pointer;border-bottom:3px solid transparent;font-size:15px}
 .tabs div.active{border-bottom:3px solid #ff2e8a;color:#ff2e8a}
-.page{display:none;flex:1;overflow:auto;padding:10px}
-.page.active{display:flex;flex-direction:column}
-#chatBox{flex:1;overflow:auto;display:flex;flex-direction:column;gap:8px}
-.msg{max-width:75%;padding:8px 10px;border-radius:12px;position:relative;word-break:break-word}
-.me{background:#ff2e8a;align-self:flex-end}
-.other{background:#2a1540;align-self:flex-start}
-.meta{font-size:11px;opacity:0.8;margin-bottom:3px}
-.inputBar{display:flex;gap:6px;padding:8px;background:#1f0a2e;align-items:center}
-.inputBar input{flex:1;padding:11px;border-radius:22px;border:none;outline:none}
-.inputBar button{padding:11px 14px;border:none;border-radius:50%;background:#ff2e8a;color:#fff;cursor:pointer;font-weight:bold}
-img.chat-img{max-width:200px;border-radius:8px;margin-top:4px}
-video.chat-vid{max-width:220px;border-radius:8px;margin-top:4px}
-audio{width:200px;margin-top:4px}
-.statusItem{display:flex;align-items:flex-start;gap:10px;padding:10px;background:#2a1540;margin-bottom:8px;border-radius:12px}
-.sCircle{width:42px;height:42px;border-radius:50%;border:2px solid #ff2e8a;display:flex;align-items:center;justify-content:center;font-weight:bold;background:#1f0a2e;flex-shrink:0}
+.page{display:none;flex:1;overflow:auto;padding:10px;flex-direction:column}
+.page.active{display:flex}
+#chatBox{flex:1;overflow:auto;display:flex;flex-direction:column;gap:8px;padding-bottom:8px}
+.msg{max-width:78%;padding:9px 11px;border-radius:14px;position:relative;word-break:break-word}
+.me{background:#ff2e8a;align-self:flex-end;border-bottom-right-radius:4px}
+.other{background:#2a1540;align-self:flex-start;border-bottom-left-radius:4px}
+.meta{font-size:11px;opacity:.8;margin-bottom:4px}
+.inputBar{display:flex;gap:7px;padding:8px;background:#1a0a24;align-items:center}
+.inputBar input{flex:1;padding:12px 14px;border-radius:24px;border:none;outline:none;background:#2a1540;color:#fff}
+.inputBar button{padding:12px 14px;border:none;border-radius:50%;background:#ff2e8a;color:#fff;cursor:pointer;font-weight:bold;min-width:44px}
+img.chat-img{max-width:200px;border-radius:10px;margin-top:5px;display:block}
+video.chat-vid{max-width:230px;border-radius:10px;margin-top:5px;display:block}
+audio{width:210px;margin-top:5px}
+.statusItem{display:flex;gap:10px;padding:12px;background:#2a1540;margin-bottom:8px;border-radius:14px}
+.sCircle{width:42px;height:42px;border-radius:50%;border:2px solid #ff2e8a;display:flex;align-items:center;justify-content:center;font-weight:bold;background:#1a0a24;flex-shrink:0}
 </style>
 </head>
 <body>
-<header>
-<div style="font-weight:bold">MayorChatZ</div>
-<div style="display:flex;gap:12px"><div onclick="copyLink()">🔗</div><div id="online">● 1</div></div>
-</header>
+<header><div style="font-weight:bold">MayorChatZ</div><div style="display:flex;gap:14px"><div onclick="copyLink()">🔗</div><div id="online">● 1</div></div></header>
 <div class="tabs">
 <div id="tab-chats" class="active" onclick="showPage('chats')">💬 Chats</div>
 <div id="tab-status" onclick="showPage('status')">📸 Status</div>
@@ -43,22 +40,22 @@ audio{width:200px;margin-top:4px}
 </div>
 
 <div id="page-chats" class="page active">
-<div id="typing" style="display:none;color:#ff2e8a;font-style:italic;margin:4px 0;font-size:13px"></div>
+<div id="typing" style="display:none;color:#ff2e8a;font-style:italic;margin:4px;font-size:13px"></div>
 <div id="chatBox"></div>
 <div class="inputBar">
 <button onclick="document.getElementById('fileInput').click()">📎</button>
 <button id="micBtn" onclick="toggleVoice()">🎤</button>
-<input type="file" id="fileInput" hidden accept="image/*,video/*">
+<input type="file" id="fileInput" hidden accept="image/*,video/*,audio/*">
 <input id="msgInput" placeholder="Type a message...">
 <button onclick="sendMsg()">➤</button>
 </div>
 </div>
 
 <div id="page-status" class="page">
-<div class="inputBar">
+<div class="inputBar" style="background:transparent;padding:0 0 10px 0">
 <input id="statusInput" placeholder="Write status...">
-<button onclick="postStatus()">Post</button>
-<button onclick="document.getElementById('statusFile').click()">📎</button>
+<button onclick="postStatus()" style="border-radius:20px;min-width:60px">Post</button>
+<button onclick="document.getElementById('statusFile').click()" style="border-radius:50%">📎</button>
 <input type="file" id="statusFile" hidden accept="image/*,video/*">
 </div>
 <div id="statusBox"></div>
@@ -67,7 +64,7 @@ audio{width:200px;margin-top:4px}
 <div id="page-groups" class="page">
 <div class="inputBar">
 <input id="groupInput" placeholder="New group name">
-<button onclick="createGroup()">Create</button>
+<button onclick="createGroup()" style="border-radius:20px">Create</button>
 </div>
 <div id="groupBox"></div>
 </div>
@@ -88,118 +85,119 @@ const chatBox=document.getElementById('chatBox');
 const msgInput=document.getElementById('msgInput');
 let typingTimeout;
 msgInput.addEventListener('input',()=>{
-  socket.emit('typing',myName);
-  clearTimeout(typingTimeout);
-  typingTimeout=setTimeout(()=>socket.emit('stopTyping'),1500);
+ socket.emit('typing',myName);
+ clearTimeout(typingTimeout);
+ typingTimeout=setTimeout(()=>socket.emit('stopTyping'),1500);
 });
-socket.on('typing',(name)=>{
-  const t=document.getElementById('typing');
-  t.innerText=name+' is typing...'; t.style.display='block';
-});
+socket.on('typing',n=>{let t=document.getElementById('typing');t.innerText=n+' is typing...';t.style.display='block';});
 socket.on('stopTyping',()=>{document.getElementById('typing').style.display='none';});
 
 function addMsg(m){
-  const d=document.createElement('div');
-  d.className='msg '+(m.name===myName?'me':'other');
-  d.id='m-'+m.mid;
-  let content=`<div class="meta">${m.name} • ${m.time}</div>`;
-  if(m.type==='image') content+=`<img class="chat-img" src="${m.data}">`;
-  else if(m.type==='video') content+=`<video class="chat-vid" controls src="${m.data}"></video>`;
-  else if(m.type==='voice') content+=`<audio controls src="${m.data}"></audio>`;
-  content+=`<div>${m.text||''}</div>`;
-  if(m.name===myName) content+=`<div style="font-size:11px;text-align:right;cursor:pointer;margin-top:4px" onclick="delMsg('${m.mid}')">🗑️</div>`;
-  d.innerHTML=content;
-  chatBox.appendChild(d);
-  chatBox.scrollTop=chatBox.scrollHeight;
-  document.getElementById('typing').style.display='none';
+ const d=document.createElement('div');
+ d.className='msg '+(m.name===myName?'me':'other');
+ d.id='m-'+m.mid;
+ let c=`<div class="meta">${m.name} • ${m.time}</div>`;
+ if(m.type==='image'&&m.data) c+=`<img class="chat-img" src="${m.data}">`;
+ if(m.type==='video'&&m.data) c+=`<video class="chat-vid" controls src="${m.data}"></video>`;
+ if(m.type==='voice'&&m.data) c+=`<audio controls src="${m.data}"></audio>`;
+ c+=`<div>${m.text||''}</div>`;
+ if(m.name===myName) c+=`<div style="font-size:11px;text-align:right;margin-top:5px;cursor:pointer" onclick="delMsg('${m.mid}')">🗑️ Delete</div>`;
+ d.innerHTML=c;
+ chatBox.appendChild(d);
+ chatBox.scrollTop=chatBox.scrollHeight;
+ document.getElementById('typing').style.display='none';
 }
 function sendMsg(){
-  const txt=msgInput.value.trim();
-  if(!txt) return;
-  const m={mid:Date.now(),name:myName,text:txt,time:new Date().toLocaleTimeString(),type:'text'};
-  socket.emit('message',m);
-  msgInput.value='';
-  socket.emit('stopTyping');
+ const t=msgInput.value.trim(); if(!t) return;
+ const m={mid:Date.now(),name:myName,text:t,time:new Date().toLocaleTimeString(),type:'text'};
+ socket.emit('message',m); msgInput.value=''; socket.emit('stopTyping');
 }
-const fileInput=document.getElementById('fileInput');
-fileInput.onchange=()=>{
-  const file=fileInput.files[0]; if(!file) return;
-  if(file.size>30*1024*1024){ alert('Video too big! Max 30MB for Chat'); return; }
-  const reader=new FileReader();
-  reader.onload=e=>{
-    const type=file.type.startsWith('image')?'image':file.type.startsWith('video')?'video':'image';
-    const m={mid:Date.now(),name:myName,text:'',time:new Date().toLocaleTimeString(),type:type,data:e.target.result};
-    socket.emit('message',m);
-  };
-  reader.readAsDataURL(file);
+document.getElementById('fileInput').onchange=()=>{
+ const file=document.getElementById('fileInput').files[0]; if(!file) return;
+ if(file.size>30*1024*1024){alert('File too big! Max 30MB');return;}
+ const reader=new FileReader();
+ reader.onload=e=>{
+  let type='image';
+  if(file.type.startsWith('video')) type='video';
+  else if(file.type.startsWith('image')) type='image';
+  const m={mid:Date.now(),name:myName,text:'',time:new Date().toLocaleTimeString(),type:type,data:e.target.result};
+  socket.emit('message',m);
+ };
+ reader.readAsDataURL(file);
 };
 let recorder,chunks=[],isRec=false;
 async function toggleVoice(){
-  const btn=document.getElementById('micBtn');
-  if(!isRec){
-    try{
-      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
-      recorder=new MediaRecorder(stream); chunks=[];
-      recorder.ondataavailable=e=>chunks.push(e.data);
-      recorder.onstop=()=>{
-        const blob=new Blob(chunks,{type:'audio/webm'});
-        const reader=new FileReader();
-        reader.onload=e=>{
-          const m={mid:Date.now(),name:myName,text:'🎤 Voice',time:new Date().toLocaleTimeString(),type:'voice',data:e.target.result};
-          socket.emit('message',m);
-        };
-        reader.readAsDataURL(blob);
-      };
-      recorder.start(); isRec=true; btn.innerText='⏹️'; btn.style.background='red';
-    }catch{alert('Mic permission denied');}
-  }else{recorder.stop(); isRec=false; btn.innerText='🎤'; btn.style.background='#ff2e8a';}
+ const btn=document.getElementById('micBtn');
+ if(!isRec){
+  try{
+   const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+   recorder=new MediaRecorder(stream); chunks=[];
+   recorder.ondataavailable=e=>chunks.push(e.data);
+   recorder.onstop=()=>{
+    const blob=new Blob(chunks,{type:'audio/webm'});
+    const r=new FileReader();
+    r.onload=e=>{
+     const m={mid:Date.now(),name:myName,text:'',time:new Date().toLocaleTimeString(),type:'voice',data:e.target.result};
+     socket.emit('message',m);
+    };
+    r.readAsDataURL(blob);
+   };
+   recorder.start(); isRec=true; btn.innerText='⏹️'; btn.style.background='red';
+  }catch{alert('Allow mic permission');}
+ }else{recorder.stop(); isRec=false; btn.innerText='🎤'; btn.style.background='#ff2e8a';}
 }
 function delMsg(id){socket.emit('deleteMsg',id);}
 socket.on('message',addMsg);
 socket.on('history',arr=>{chatBox.innerHTML='';arr.forEach(addMsg);});
-socket.on('deleteMsg',id=>{const el=document.getElementById('m-'+id); if(el) el.remove();});
+socket.on('deleteMsg',id=>{let el=document.getElementById('m-'+id); if(el) el.remove();});
 socket.on('online',n=>{document.getElementById('online').innerText='● '+n;});
 
-// STATUS WITH VIDEO FIX
-function postStatus(){
-  const txt=document.getElementById('statusInput').value.trim();
-  if(!txt && !window.statusData){ alert('Write something or attach file'); return; }
-  const st={id:Date.now(),name:myName,text:txt,time:new Date().toLocaleTimeString(),data:window.statusData||null,type:window.statusType||'text'};
-  socket.emit('postStatus',st);
-  document.getElementById('statusInput').value=''; window.statusData=null; window.statusType=null;
-}
+let tempStatusData=null,tempStatusType=null;
 document.getElementById('statusFile').onchange=e=>{
-  const f=e.target.files[0]; if(!f) return;
-  if(f.size>15*1024*1024){ alert('Video too big for Status! Max 15MB. Trim am small'); return; }
-  const r=new FileReader();
-  r.onload=ev=>{window.statusData=ev.target.result; window.statusType=f.type.startsWith('image')?'image':'video'; alert('File ready ✅ Now tap Post');};
-  r.readAsDataURL(f);
+ const f=e.target.files[0]; if(!f) return;
+ if(f.size>12*1024*1024){alert('Status video too big! Max 12MB - use small video');return;}
+ const r=new FileReader();
+ r.onload=ev=>{
+  tempStatusData=ev.target.result;
+  tempStatusType=f.type.startsWith('video')?'video':'image';
+  alert('✅ File ready! Now write text and tap Post');
+ };
+ r.readAsDataURL(f);
 };
+function postStatus(){
+ const txt=document.getElementById('statusInput').value.trim();
+ if(!txt && !tempStatusData){alert('Write something or attach file');return;}
+ const st={id:Date.now(),name:myName,text:txt,time:new Date().toLocaleTimeString(),data:tempStatusData,type:tempStatusType||'text'};
+ socket.emit('postStatus',st);
+ document.getElementById('statusInput').value='';
+ tempStatusData=null; tempStatusType=null;
+ document.getElementById('statusFile').value='';
+}
 function addStatus(s){
-  const box=document.getElementById('statusBox');
-  const d=document.createElement('div'); d.className='statusItem';
-  let media='';
-  if(s.type==='image'&&s.data) media=`<img style="width:100%;border-radius:10px;margin-top:6px" src="${s.data}">`;
-  if(s.type==='video'&&s.data) media=`<video style="width:100%;border-radius:10px;margin-top:6px" controls src="${s.data}"></video>`;
-  d.innerHTML=`<div class="sCircle">${s.name[0].toUpperCase()}</div><div style="flex:1"><b>${s.name}</b><br><small>${s.time}</small><div style="margin-top:4px">${s.text||''}</div>${media}</div>`;
-  box.prepend(d);
+ const box=document.getElementById('statusBox');
+ const d=document.createElement('div'); d.className='statusItem';
+ let media='';
+ if(s.data && s.type==='image') media=`<img style="width:100%;border-radius:12px;margin-top:8px" src="${s.data}">`;
+ if(s.data && s.type==='video') media=`<video style="width:100%;border-radius:12px;margin-top:8px" controls src="${s.data}"></video>`;
+ d.innerHTML=`<div class="sCircle">${s.name.charAt(0).toUpperCase()}</div><div style="flex:1"><b>${s.name}</b><br><small>${s.time}</small><div style="margin-top:6px">${s.text||''}</div>${media}</div>`;
+ box.prepend(d);
 }
 socket.on('newStatus',addStatus);
 socket.on('statusHistory',arr=>{document.getElementById('statusBox').innerHTML='';arr.forEach(addStatus);});
 function createGroup(){
-  const n=document.getElementById('groupInput').value.trim();
-  if(!n) return; socket.emit('createGroup',n); document.getElementById('groupInput').value='';
+ const n=document.getElementById('groupInput').value.trim(); if(!n) return;
+ socket.emit('createGroup',n); document.getElementById('groupInput').value='';
 }
 socket.on('groups',arr=>{
-  const b=document.getElementById('groupBox'); b.innerHTML='';
-  arr.forEach(g=>{
-    const d=document.createElement('div'); d.className='statusItem';
-    d.innerHTML=`<div class="sCircle">👥</div><div>${g.name}</div>`;
-    b.appendChild(d);
-  });
+ const b=document.getElementById('groupBox'); b.innerHTML='';
+ arr.forEach(g=>{
+  const d=document.createElement('div'); d.className='statusItem';
+  d.innerHTML=`<div class="sCircle">👥</div><div>${g.name}</div>`;
+  b.appendChild(d);
+ });
 });
 function copyLink(){navigator.clipboard.writeText(location.href); alert('Link copied!');}
 msgInput.addEventListener('keydown',e=>{if(e.key==='Enter') sendMsg();});
 </script>
 </body>
-  </html>
+</html>
