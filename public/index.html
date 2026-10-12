@@ -1,104 +1,58 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MayorChatZ 👑</title>
-<link rel="manifest" href="manifest.json">
-<link rel="icon" type="image/png" href="icon.png">
-<link rel="apple-touch-icon" href="icon.png">
-<meta name="theme-color" content="#00a884">
-<meta property="og:title" content="MayorChatZ 👑">
-<meta property="og:image" content="icon.png">
-<meta property="og:description" content="Chat with De Mayors - Fast, Secure">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MayorChatZ</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui}
-body{background:#111b21;color:#e9edef;height:100vh;display:flex;flex-direction:column}
-header{background:#202c33;padding:12px 16px;display:flex;justify-content:space-between;align-items:center}
-.tabs{display:flex;background:#202c33}
-.tabs button{flex:1;padding:12px;background:none;border:none;color:#8696a0;font-weight:bold;cursor:pointer}
-.tabs button.active{color:#00a884;border-bottom:3px solid #00a884}
-#views{flex:1;overflow:hidden;position:relative}
-.view{display:none;height:100%;overflow-y:auto}
-.view.active{display:flex;flex-direction:column}
-#chatArea{flex:1;overflow-y:auto;padding:16px;background:#0b141a;background-image:url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1MDAiIGhlaWdodD0iNTAwIj48L3N2Zz4=');}
-.bubble{max-width:70%;padding:8px 12px;border-radius:8px;margin:4px 0;background:#202c33}
-.bubble.me{background:#005c4b;align-self:flex-end}
-.inputBar{display:flex;align-items:center;gap:8px;padding:8px;background:#202c33}
-.inputBar input[type=text]{flex:1;padding:12px;border-radius:24px;border:none;background:#2a3942;color:#fff;outline:none}
-.iconBtn{background:#00a884;border:none;width:44px;height:44px;border-radius:50%;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
-#statusList,#groupList{padding:12px}
-.statusItem,.groupItem{padding:12px;background:#202c33;margin-bottom:8px;border-radius:8px;display:flex;align-items:center;gap:12px;cursor:pointer}
+*{margin:0;padding:0;box-sizing:border-box;font-family:sans-serif}
+body{background:#111b21;color:#fff;height:100vh;display:flex;flex-direction:column}
+.top{display:flex;background:#202c33;padding:12px;gap:20px}
+.top b{color:#8696a0;cursor:pointer}.top b.active{color:#00a884;border-bottom:3px solid #00a884;padding-bottom:6px}
+#chats{flex:1;overflow-y:auto;padding:10px;background:#0b141a}
+.msg{max-width:75%;padding:8px 10px;border-radius:8px;margin:6px 0;word-wrap:break-word;position:relative}
+.own{background:#005c4b;margin-left:auto}.other{background:#202c33}
+.small{font-size:10px;opacity:.6;float:right;margin:4px 0 0 8px}
+.bottom{display:flex;align-items:center;gap:8px;padding:10px;background:#202c33}
+.bottom input{flex:1;padding:12px;border-radius:25px;border:none;background:#2a3942;color:white;outline:none}
+.btn{width:45px;height:45px;border-radius:50%;background:#00a884;display:flex;align-items:center;justify-content:center;cursor:pointer}
 </style>
 </head>
 <body>
-<header>
-<div><b>MayorChatZ</b> <small id="online" style="color:#00a884">1 online • General</small></div>
-<button style="background:#00a884;border:none;padding:6px 14px;border-radius:20px;color:#fff">Share</button>
-</header>
-
-<div class="tabs">
-<button class="active" onclick="switchTab('chats')">Chats</button>
-<button onclick="switchTab('status')">Status</button>
-<button onclick="switchTab('groups')">Groups</button>
+<div class="top"><b class="active">Chats</b><b>Status</b><b>Groups</b><span id="online" style="margin-left:auto;font-size:12px;color:#00a884"></span></div>
+<div id="chats"></div>
+<div class="bottom">
+<input id="msgInput" placeholder="Type a message">
+<div class="btn" id="sendBtn">➤</div>
 </div>
-
-<div id="views">
-<div id="chats" class="view active">
-<div id="chatArea"></div>
-<div class="inputBar">
-<button class="iconBtn" onclick="document.getElementById('emojiPicker').style.display='flex'">😊</button>
-<label class="iconBtn" style="background:#2a3942">📷<input type="file" id="photoInput" accept="image/*" hidden></label>
-<input type="text" id="msgInput" placeholder="Type a message">
-<button class="iconBtn" id="micBtn">🎤</button>
-<button class="iconBtn" id="sendBtn">➤</button>
-</div>
-</div>
-
-<div id="status" class="view">
-<div id="statusList">
-<div class="statusItem"><div style="width:44px;height:44px;border-radius:50%;background:#00a884;display:flex;align-items:center;justify-content:center">M</div><div><b>My Status</b><br><small>Tap to add</small></div></div>
-<div class="statusItem"><div style="width:44px;height:44px;border-radius:50%;background:#54656f">👑</div><div><b>De Mayors</b><br><small>5m ago</small></div></div>
-</div>
-</div>
-
-<div id="groups" class="view">
-<div id="groupList">
-<div class="groupItem"><div style="width:44px;height:44px;border-radius:50%;background:#00a884">👥</div><div><b>General</b><br><small>1 member</small></div></div>
-<div class="groupItem" onclick="createGroup()"><div style="width:44px;height:44px;border-radius:50%;background:#2a3942">+</div><div><b>Create Group</b></div></div>
-</div>
-</div>
-</div>
-
-<div id="emojiPicker" style="display:none;position:fixed;bottom:70px;left:10px;background:#202c33;padding:10px;border-radius:12px;gap:6px;flex-wrap:wrap;width:220px">
-<span onclick="addEmoji('😂')">😂</span><span onclick="addEmoji('❤️')">❤️</span><span onclick="addEmoji('🔥')">🔥</span><span onclick="addEmoji('👑')">👑</span><span onclick="addEmoji('😊')">😊</span><span onclick="addEmoji('👍')">👍</span>
-</div>
-
 <script src="/socket.io/socket.io.js"></script>
 <script>
 const socket=io();
-let currentRoom='General';
-function switchTab(t){document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.getElementById(t).classList.add('active');event.target.classList.add('active');}
-function addEmoji(e){document.getElementById('msgInput').value+=e;document.getElementById('emojiPicker').style.display='none';}
-function createGroup(){let n=prompt('Group name?');if(n){let d=document.createElement('div');d.className='groupItem';d.innerHTML=`<div style="width:44px;height:44px;border-radius:50%;background:#00a884">👥</div><div><b>${n}</b><br><small>New group</small></div>`;document.getElementById('groupList').prepend(d);}}
-const chatArea=document.getElementById('chatArea'),msgInput=document.getElementById('msgInput');
-document.getElementById('sendBtn').onclick=send;
-msgInput.addEventListener('keypress',e=>{if(e.key==='Enter')send();});
-function send(){let t=msgInput.value.trim();if(!t)return;addBubble(t,true);socket.emit('message',{room:currentRoom,text:t});msgInput.value='';}
-function addBubble(t,me=false){let d=document.createElement('div');d.className='bubble '+(me?'me':'');d.textContent=t;chatArea.appendChild(d);chatArea.scrollTop=chatArea.scrollHeight;}
-socket.on('message',m=>{addBubble(m.text,false);});
-socket.on('online',n=>{document.getElementById('online').textContent=n+' online • '+currentRoom;});
-// Photo sending
-document.getElementById('photoInput').addEventListener('change',e=>{
-let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{addBubble('📷 Photo',true);let img=document.createElement('img');img.src=r.result;img.style.maxWidth='200px';img.style.borderRadius='8px';img.style.marginTop='6px';chatArea.lastChild.appendChild(img);socket.emit('message',{room:currentRoom,text:'📷 Photo',image:r.result});};r.readAsDataURL(f);
-});
-// Voice note
-let rec, chunks=[];
-document.getElementById('micBtn').addEventListener('click',async()=>{
-if(rec&&rec.state==='recording'){rec.stop();document.getElementById('micBtn').textContent='🎤';return;}
-try{let s=await navigator.mediaDevices.getUserMedia({audio:true});rec=new MediaRecorder(s);chunks=[];rec.ondataavailable=e=>chunks.push(e.data);rec.onstop=()=>{let b=new Blob(chunks,{type:'audio/webm'});let u=URL.createObjectURL(b);let a=document.createElement('audio');a.controls=true;a.src=u;let d=document.createElement('div');d.className='bubble me';d.appendChild(a);chatArea.appendChild(d);};rec.start();document.getElementById('micBtn').textContent='⏹️';}catch{alert('Mic permission needed');}
-});
-if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js')}
+const chats=document.getElementById('chats');
+const input=document.getElementById('msgInput');
+const sendBtn=document.getElementById('sendBtn');
+
+function addMsg(m){
+ if(document.getElementById('mid-'+m.mid)) return; // ANTI-DUPLICATE
+ const d=document.createElement('div');
+ d.id='mid-'+m.mid;
+ d.className='msg '+(m.id===socket.id?'own':'other');
+ d.innerHTML=`${m.text}<span class="small">${m.time} ${m.ticks||'✓✓'}</span>`;
+ d.ondblclick=()=>{ if(m.id===socket.id && confirm('Delete?')) socket.emit('deleteMsg',m.mid); };
+ d.oncontextmenu=(e)=>{ e.preventDefault(); if(m.id===socket.id) socket.emit('deleteMsg',m.mid); };
+ chats.appendChild(d);
+ chats.scrollTop=chats.scrollHeight;
+}
+socket.on('history',arr=>{ chats.innerHTML=''; arr.forEach(addMsg); });
+socket.on('message',addMsg);
+socket.on('deleteMsg',mid=>{ let el=document.getElementById('mid-'+mid); if(el) el.remove(); });
+socket.on('online',n=>document.getElementById('online').innerText=n+' online');
+
+function send(){
+ let t=input.value.trim(); if(!t) return;
+ socket.emit('message',{text:t}); input.value='';
+}
+sendBtn.onclick=send;
+input.addEventListener('keydown',e=>{ if(e.key==='Enter') send(); });
 </script>
 </body>
 </html>
