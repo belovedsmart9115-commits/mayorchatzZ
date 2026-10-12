@@ -1,69 +1,72 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>MayorChatZ PRO MAX</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<meta name="theme-color" content="#00a884">
+<meta property="og:image" content="icon.png">
 <style>
-*{margin:0;padding:0;box-sizing:border-box}body{font-family: -apple-system,Arial;background:#111b21;color:#e9edef;height:100vh;display:flex;flex-direction:column;overflow:hidden}
-#top{background:#202c33;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:10}
-#tabs{display:flex;background:#202c33;border-bottom:1px solid #2a3942} #tabs div{flex:1;padding:14px;text-align:center;cursor:pointer;font-size:14px;opacity:0.7;border-bottom:3px solid transparent} #tabs div.active{opacity:1;border-color:#00a884;color:#00a884;font-weight:bold}
-#chats,#statusList,#groupList{flex:1;overflow-y:auto;padding:10px 8px;background:#0b141a;background-image:url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');background-blend-mode:soft-light}
-.msg{background:#202c33;margin:5px 0;padding:6px 8px 6px 8px;border-radius:8px;max-width:80%;box-shadow:0 1px 0.5px rgba(0,0,0,0.3);position:relative;word-break:break-word}
-.msg.me{background:#005c4b;margin-left:auto;border-top-right-radius:0}.msg.other{border-top-left-radius:0}
-.msg b{color:#53bdeb;font-size:13px}.msg.me b{color:#e9edef}
-.msg small{font-size:10px;opacity:0.6;float:right;margin-left:10px;margin-top:4px}
-.msg img{width:100%;border-radius:6px;margin-top:5px;cursor:pointer;max-height:300px;object-fit:cover}.msg video{width:100%;border-radius:6px;margin-top:5px;max-height:300px}
-.tick{color:#53bdeb;margin-left:3px}
-#bottom{display:flex;padding:6px 8px;background:#202c33;gap:5px;align-items:center;position:sticky;bottom:0}
-#input{flex:1;padding:11px 15px;border-radius:21px;border:none;background:#2a3942;color:#fff;font-size:15px;outline:none}
-button{background:#00a884;border:none;padding:10px 12px;border-radius:50%;color:#fff;font-weight:bold;cursor:pointer;min-width:42px;height:42px;display:flex;align-items:center;justify-content:center}
-#sendBtn{border-radius:21px;min-width:55px}
-#notifBar{display:none;background:#00a884;padding:8px;text-align:center;font-weight:bold;cursor:pointer;font-size:13px}
-#emojiPanel{display:none;position:absolute;bottom:60px;left:8px;right:8px;background:#202c33;border-radius:10px;padding:10px;grid-template-columns:repeat(8,1fr);gap:8px;z-index:20;max-height:150px;overflow-y:auto}
-#emojiPanel.show{display:grid}
-.emoji{font-size:22px;cursor:pointer;text-align:center;padding:4px}
-.emoji:active{background:#2a3942;border-radius:6px}
-.replyTag{background:rgba(0,0,0,0.2);border-left:3px solid #00a884;padding:4px 6px;border-radius:4px;margin-bottom:4px;font-size:12px;opacity:0.9}
+*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,sans-serif;background:#111b21;height:100vh;display:flex;flex-direction:column}
+#head{background:#202c33;color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center}
+#head b{font-size:16px}#online{font-size:12px;color:#25d366}
+#msgs{flex:1;overflow-y:auto;padding:10px;background:#0b141a url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');display:flex;flex-direction:column;gap:6px}
+.bubble{max-width:75%;padding:8px 10px;border-radius:8px;position:relative;font-size:14.5px;line-height:19px;cursor:pointer}
+.me{align-self:flex-end;background:#005c4b;color:#e9edef;border-top-right-radius:0}
+.other{align-self:flex-start;background:#202c33;color:#e9edef;border-top-left-radius:0}
+.meta{font-size:11px;color:#8696a0;text-align:right;margin-top:4px}
+.me .meta{color:#53bdeb}
+.reply{border-left:3px solid #25d366;background:rgba(0,0,0,.2);padding:4px 6px;margin-bottom:4px;border-radius:4px;font-size:12px;opacity:.8}
+#repBar{background:#182229;color:#25d366;padding:8px 12px;display:none;justify-content:space-between;border-left:4px solid #25d366}
+#inputArea{background:#202c33;padding:8px 10px;display:flex;align-items:flex-end;gap:8px}
+#inp{flex:1;background:#2a3942;border:none;border-radius:8px;padding:10px 12px;color:#fff;outline:none;resize:none;max-height:100px}
+.btn{width:40px;height:40px;border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px}
+#sendBtn{background:#00a884;color:#fff}
+#emojiBtn{background:transparent}
+#emojiPanel{position:absolute;bottom:60px;left:10px;background:#202c33;padding:10px;border-radius:12px;display:none;grid-template-columns:repeat(6,1fr);gap:6px;width:220px;z-index:10}
+#emojiPanel span{font-size:22px;cursor:pointer;padding:4px}
 </style>
 </head>
 <body>
-<div id="top"><div><b>MayorChatZ</b> <small id="online" style="opacity:0.7">0 online</small></div><button onclick="share()" style="border-radius:20px;padding:6px 14px;font-size:12px;height:auto">📤 Share</button></div>
-<div id="notifBar" onclick="enableNotif()">🔔 Tap to Enable Notification</div>
-<div id="tabs"><div id="tabC" class="active" onclick="showTab('chats')">Chats</div><div id="tabS" onclick="showTab('status')">Status</div><div id="tabG" onclick="showTab('groups')">Groups</div></div>
-<div id="chats"></div>
-<div id="statusList" style="display:none"></div>
-<div id="groupList" style="display:none"><button onclick="createGroup()" style="border-radius:20px;width:100%;margin-bottom:10px">👥+ Create Group</button><div id="groups"></div></div>
+<div id="head"><div><b>MayorChatZ</b> <span id="online">1 online</span> • General</div><button onclick="share()" style="background:#00a884;color:#fff;border:none;padding:6px 12px;border-radius:20px;font-weight:600">Share</button></div>
+<div id="repBar"><div><small id="repName"></small><div id="repText"></div></div><span onclick="cancelRep()" style="cursor:pointer">✕</span></div>
+<div id="msgs"></div>
+<div style="position:relative">
 <div id="emojiPanel"></div>
-<div id="bottom"><button onclick="document.getElementById('file').click()">📷</button><input id="file" type="file" accept="image/*,video/*" style="display:none" onchange="sendFile(this)"><button onclick="toggleEmoji()">😊</button><input id="input" placeholder="Type a message"><button onmousedown="startRec()" onmouseup="stopRec()" ontouchstart="startRec()" ontouchend="stopRec()">🎤</button><button id="sendBtn" onclick="sendMsg()">➤</button></div>
+<div id="inputArea">
+<button class="btn" id="emojiBtn" onclick="toggleEmoji()">😊</button>
+<textarea id="inp" placeholder="Type a message" rows="1"></textarea>
+<button class="btn" id="sendBtn" onclick="send()">➤</button>
+</div>
+</div>
+<script src="/socket.io/socket.io.js"></script>
 <script>
-let myName=localStorage.getItem('mcName')||prompt('Your name?')||'User'; localStorage.setItem('mcName',myName);
-let currentGroup=localStorage.getItem('mcGroup')||'General'; let mediaRec=null,chunks=[],lastCount=0,replyTo=null;
-let notifSound=new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg"); let notifEnabled=false;
-let emojis=["😂","❤️","😍","🙏","🔥","😊","😭","🥰","👍","👏","🤣","😅","❤️‍🔥","💯","✨","🙌","😁","🥺","😎","🤩","😘","🤗","😇","🤔","😴","🥳","😜","🤭","🤫","🫡","👌","💀","😈","👀","🫶","❤️‍🩹","💔","💕","💖","🎉","🙂","😢","😡","🤝","💪","🌹","⚡","🍀","🕊️"];
-let ep=document.getElementById('emojiPanel'); emojis.forEach(e=>{ let d=document.createElement('div'); d.className='emoji'; d.innerText=e; d.onclick=()=>{ document.getElementById('input').value+=e; document.getElementById('input').focus(); }; ep.appendChild(d); });
-function toggleEmoji(){ ep.classList.toggle('show'); }
-function enableNotif(){ if("Notification" in window) Notification.requestPermission(); notifSound.play().catch(()=>{}); notifEnabled=true; document.getElementById('notifBar').style.display='none'; localStorage.setItem('mcNotif','1'); }
-if(localStorage.getItem('mcNotif')|| (Notification && Notification.permission==="granted")){ notifEnabled=true; } else if("Notification" in window && Notification.permission!=="granted"){ document.getElementById('notifBar').style.display='block'; }
-function showNotif(m){ if(m.name===myName) return; try{ if(notifEnabled){ notifSound.play().catch(()=>{}); if(navigator.vibrate) navigator.vibrate([200,100,200]); } if(Notification.permission==="granted"){ new Notification("MayorChatZ: "+m.name,{body:m.text|| (m.media?"📷 Media":"🎤 Voice")}); } }catch(e){} }
-function showTab(t){ document.getElementById('chats').style.display=t==='chats'?'block':'none'; document.getElementById('statusList').style.display=t==='status'?'block':'none'; document.getElementById('groupList').style.display=t==='groups'?'block':'none'; document.querySelectorAll('#tabs div').forEach(d=>d.classList.remove('active')); if(t==='chats')document.getElementById('tabC').classList.add('active'); if(t==='status'){document.getElementById('tabS').classList.add('active'); loadStatus();} if(t==='groups'){document.getElementById('tabG').classList.add('active'); loadGroups();} ep.classList.remove('show'); }
-function setReply(name,text){ replyTo={name,text:text.slice(0,30)}; document.getElementById('input').placeholder="Replying to "+name+"..."; document.getElementById('input').focus(); }
-async function fetchMsgs(){ try{ let r=await fetch('/api/messages?group='+currentGroup); let data=await r.json(); if(data.length>lastCount && lastCount>0){ data.slice(lastCount).forEach(m=>showNotif(m)); } lastCount=data.length; let c=document.getElementById('chats'); c.innerHTML=''; data.forEach(m=>{ let isMe=m.name===myName; let div=document.createElement('div'); div.className='msg '+(isMe?'me':'other'); let rt=m.reply?`<div class="replyTag"><b>${m.reply.name}</b><br>${m.reply.text}</div>`:''; let html=`${rt}<b>${m.name}</b><br>${m.text||''}`; if(m.media){ if((m.mediaType&&m.mediaType.includes('image'))||m.media.startsWith('data:image')) html+=`<br><img src="${m.media}" onclick="window.open(this.src)">`; else html+=`<br><video src="${m.media}" controls playsinline></video>`; } if(m.audio) html+=`<br><audio src="${m.audio}" controls style="width:200px"></audio>`; html+=`<br><small>${m.time||''} ${isMe?'<span class="tick">✓✓</span>':''}</small> ${isMe?`<span style="cursor:pointer;float:right;margin-right:6px" onclick="delMsg('${m.id}')">🗑️</span>`:''}`; div.innerHTML=html; div.onclick=()=>{ if(!isMe) setReply(m.name,m.text||'Media'); }; c.appendChild(div); }); c.scrollTop=c.scrollHeight; }catch(e){} }
-async function sendMsg(){ if(!notifEnabled) enableNotif(); let inp=document.getElementById('input'); let txt=inp.value; if(!txt.trim())return; let payload={name:myName,text:txt,group:currentGroup}; if(replyTo) payload.reply=replyTo; await fetch('/api/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); inp.value=''; replyTo=null; inp.placeholder="Type a message"; ep.classList.remove('show'); fetchMsgs(); }
-async function sendFile(inp){ if(!notifEnabled) enableNotif(); let file=inp.files[0]; if(!file)return; let reader=new FileReader(); reader.onload=async e=>{ let payload={name:myName,text:'',media:e.target.result,mediaType:file.type,group:currentGroup}; if(replyTo) payload.reply=replyTo; await fetch('/api/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); fetchMsgs(); }; reader.readAsDataURL(file); inp.value=''; replyTo=null; }
-async function delMsg(id){ if(!confirm("Delete?"))return; await fetch('/api/messages/'+id,{method:'DELETE'}); fetchMsgs(); }
-async function loadStatus(){ let r=await fetch('/api/status'); let data=await r.json(); let c=document.getElementById('statusList'); c.innerHTML='<button onclick="postStatus()" style="border-radius:20px;width:48%;margin-right:2%">📝 Text</button><button onclick="document.getElementById(\'statusFile\').click()" style="border-radius:20px;width:48%">📷 Media</button><input id=\'statusFile\' type=\'file\' accept=\'image/*,video/*\' style=\'display:none\' onchange=\'sendStatusFile(this)\'><hr style="margin:10px 0;border-color:#2a3942">'; data.slice().reverse().forEach(s=>{ let d=document.createElement('div'); d.className='msg other'; let h=`<b>${s.name}</b> <small>${s.time}</small><br>${s.text||''}`; if(s.media){ if(s.mediaType&&s.mediaType.includes('image')) h+=`<br><img src="${s.media}">`; else h+=`<br><video src="${s.media}" controls playsinline></video>`; } d.innerHTML=h; c.appendChild(d); }); }
-async function postStatus(){ let t=prompt('Status?'); if(!t)return; await fetch('/api/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:myName,text:t})}); loadStatus(); }
-async function sendStatusFile(inp){ let f=inp.files[0]; let r=new FileReader(); r.onload=async e=>{ await fetch('/api/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:myName,media:e.target.result,mediaType:f.type})}); loadStatus(); }; r.readAsDataURL(f); }
-async function loadGroups(){ let r=await fetch('/api/groups'); let data=await r.json(); let c=document.getElementById('groups'); c.innerHTML=''; data.forEach(g=>{ let d=document.createElement('div'); d.className='msg other'; d.innerHTML=`<b>${g.name}</b> <button onclick="joinGroup('${g.name}')" style="float:right;border-radius:15px;height:auto;padding:5px 12px">Join</button>`; c.appendChild(d); }); }
-async function createGroup(){ let n=prompt('Group name?'); if(!n)return; await fetch('/api/groups',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:n})}); loadGroups(); }
-function joinGroup(n){ currentGroup=n; localStorage.setItem('mcGroup',n); showTab('chats'); lastCount=0; fetchMsgs(); }
-function share(){ let link=location.href; if(navigator.share){ navigator.share({title:'MayorChatZ PRO MAX 🔒',text:'Join my private chat on MayorChatZ PRO MAX 🔒 Fast like WhatsApp!',url:link}).catch(()=>{ navigator.clipboard.writeText(link); alert("Link copied! "+link); }); } else { navigator.clipboard.writeText(link); let wa="https://wa.me/?text=Join%20my%20MayorChatZ%20PRO%20MAX%20🔒%20"+encodeURIComponent(link); if(confirm("Link copied! ✅\nShare on WhatsApp now?")) window.open(wa,'_blank'); else alert("Link copied! "+link); } }
-async function updateOnline(){ try{ await fetch('/api/online',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:myName})}); let r=await fetch('/api/users'); let d=await r.json(); document.getElementById('online').innerText=(d.count||1)+' online • '+currentGroup; }catch(e){} }
-function startRec(){ navigator.mediaDevices.getUserMedia({audio:true}).then(s=>{ mediaRec=new MediaRecorder(s); chunks=[]; mediaRec.ondataavailable=e=>chunks.push(e.data); mediaRec.onstop=async ()=>{ let blob=new Blob(chunks,{type:'audio/webm'}); let rd=new FileReader(); rd.onload=async e=>{ await fetch('/api/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:myName,audio:e.target.result,group:currentGroup})}); fetchMsgs(); }; rd.readAsDataURL(blob); }; mediaRec.start(); }); }
-function stopRec(){ if(mediaRec&&mediaRec.state==='recording')mediaRec.stop(); }
-document.getElementById('input').addEventListener('keydown',e=>{ if(e.key==='Enter')sendMsg(); });
-document.getElementById('chats').addEventListener('click',()=>{ ep.classList.remove('show'); });
-setInterval(()=>{ fetchMsgs(); updateOnline(); },2500); fetchMsgs(); updateOnline();
+let replyTo=null;
+const emojis=['😀','😂','😍','🔥','❤️','👑','😭','🥺','💀','🙏','😎','🤣','😅','😊','👍','👏','💯','✨','🎉','😢','🤔','😏','🥰','😜','🤩','😇','🥳','😋','🤫','🤐','😤','🥵','🥶','🤯','😴','🥱','🤠','👻','💩','👀','🫡','💪','🫶','🤝'];
+const panel=document.getElementById('emojiPanel');
+emojis.forEach(e=>{let s=document.createElement('span');s.textContent=e;s.onclick=()=>{inp.value+=e;panel.style.display='none';inp.focus()};panel.appendChild(s)});
+function toggleEmoji(){panel.style.display=panel.style.display==='grid'?'none':'grid'}
+let socket=io();let user=localStorage.getItem('mz_user')||'DE mayors';let room='general';
+socket.emit('join',user);
+socket.on('history',m=>{document.getElementById('msgs').innerHTML='';m.forEach(addMsg)});
+socket.on('message',addMsg);
+socket.on('count',c=>document.getElementById('online').innerText=c+' online');
+function addMsg(d){
+let div=document.createElement('div');div.className='bubble '+(d.user===user?'me':'other');
+let isImg=d.text.match(/\.(jpeg|jpg|gif|png|webp)$/i);
+let content=isImg?`<img src="${d.text}" style="max-width:200px;border-radius:8px">`:`${d.user!=='DE mayors'&&d.user!==user?'<small style="color:#25d366;font-weight:600">'+d.user+'</small><br>':''}${d.reply?`<div class="reply"><b>${d.reply.user}</b><br>${d.reply.text.slice(0,50)}</div>`:''}${d.text}`;
+div.innerHTML=content+`<div class="meta">${new Date(d.time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})} ✓✓</div>`;
+div.onclick=()=>{replyTo=d;document.getElementById('repBar').style.display='flex';document.getElementById('repName').innerText=d.user;document.getElementById('repText').innerText=d.text.slice(0,40);};
+document.getElementById('msgs').appendChild(div);document.getElementById('msgs').scrollTop=99999;
+}
+function send(){let t=inp.value.trim();if(!t)return;socket.emit('message',{text:t,reply:replyTo?{user:replyTo.user,text:replyTo.text}:null});inp.value='';cancelRep();panel.style.display='none'}
+function cancelRep(){replyTo=null;document.getElementById('repBar').style.display='none'}
+inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}});
+function share(){let txt=`Join my private chat on MayorChatZ PRO MAX 🔒\n${location.href}`;if(navigator.share)navigator.share({title:'MayorChatZ',text:txt,url:location.href});else window.open('https://wa.me/?text='+encodeURIComponent(txt))}
+// PWA
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js')}
 </script>
 </body>
 </html>
