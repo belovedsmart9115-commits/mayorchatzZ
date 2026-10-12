@@ -1,58 +1,92 @@
-<!DOCTYPE html>
-<html>
-<head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MayorChatZ</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:sans-serif}
-body{background:#111b21;color:#fff;height:100vh;display:flex;flex-direction:column}
-.top{display:flex;background:#202c33;padding:12px;gap:20px}
-.top b{color:#8696a0;cursor:pointer}.top b.active{color:#00a884;border-bottom:3px solid #00a884;padding-bottom:6px}
-#chats{flex:1;overflow-y:auto;padding:10px;background:#0b141a}
-.msg{max-width:75%;padding:8px 10px;border-radius:8px;margin:6px 0;word-wrap:break-word;position:relative}
-.own{background:#005c4b;margin-left:auto}.other{background:#202c33}
-.small{font-size:10px;opacity:.6;float:right;margin:4px 0 0 8px}
-.bottom{display:flex;align-items:center;gap:8px;padding:10px;background:#202c33}
-.bottom input{flex:1;padding:12px;border-radius:25px;border:none;background:#2a3942;color:white;outline:none}
-.btn{width:45px;height:45px;border-radius:50%;background:#00a884;display:flex;align-items:center;justify-content:center;cursor:pointer}
-</style>
-</head>
-<body>
-<div class="top"><b class="active">Chats</b><b>Status</b><b>Groups</b><span id="online" style="margin-left:auto;font-size:12px;color:#00a884"></span></div>
-<div id="chats"></div>
-<div class="bottom">
-<input id="msgInput" placeholder="Type a message">
-<div class="btn" id="sendBtn">➤</div>
-</div>
-<script src="/socket.io/socket.io.js"></script>
-<script>
+<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>MayorChatZ</title><style>*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui}body{background:#111b21;color:#fff;height:100vh;display:flex;flex-direction:column}.top{display:flex;background:#202c33;padding:12px 10px;gap:18px;align-items:center}.top b{color:#8696a0;cursor:pointer}.top b.active{color:#00a884;border-bottom:3px solid #00a884}#chats,#statusPage{flex:1;overflow-y:auto;padding:10px;background:#0b141a;display:none}#chats.active,#statusPage.active{display:block}.msg{max-width:80%;padding:8px 10px;border-radius:8px;margin:7px 0;word-break:break-word}.own{background:#005c4b;margin-left:auto}.other{background:#202c33}.name{font-size:11px;color:#53bdeb;font-weight:700}.small{font-size:10px;opacity:.6;float:right;margin:6px 0 0 8px}.msg img{max-width:100%;border-radius:8px;margin-top:6px}.status{background:#202c33;padding:10px;border-radius:10px;margin:8px 0}.bottom{display:flex;gap:5px;padding:8px;background:#202c33;align-items:center}.bottom input{flex:1;padding:12px;border-radius:25px;border:none;background:#2a3942;color:#fff;outline:none}.icon{width:42px;height:42px;border-radius:50%;background:#2a3942;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:20px}.send{background:#00a884}.recording{background:#f15c6d!important;animation:pulse 1s infinite}@keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.1)}100%{transform:scale(1)}}.emojiBox{display:none;position:absolute;bottom:65px;left:5px;background:#202c33;padding:8px;border-radius:12px;flex-wrap:wrap;gap:6px;width:260px;z-index:10}.emojiBox span{font-size:22px;cursor:pointer}audio{width:180px;height:35px;margin-top:5px}</style></head><body>
+<div class="top"><b id="tabChat" class="active">Chats</b><b id="tabStatus">Status</b><b id="tabGroups">Groups</b><span id="online" style="margin-left:auto;font-size:12px;color:#25d366"></span></div>
+<div id="chats" class="active"></div>
+<div id="statusPage"><div style="display:flex;gap:8px;margin-bottom:10px"><input id="statusInput" placeholder="Post status..." style="flex:1;padding:10px;border-radius:20px;border:none;background:#2a3942;color:#fff"><div class="icon" id="statusImgBtn">📷</div><div class="icon send" id="statusSend">➤</div></div><div id="statusList"></div></div>
+<div class="bottom" id="chatBar"><div class="icon" id="emojiBtn">😊</div><div class="icon" id="imgBtn">📷</div><input id="msgInput" placeholder="Type a message"><div class="icon" id="micBtn">🎤</div><div class="icon send" id="sendBtn">➤</div><div class="emojiBox" id="emojiBox"></div><input type="file" id="fileInput" accept="image/*,video/*" hidden><input type="file" id="statusFile" accept="image/*,video/*" hidden></div>
+<script src="/socket.io/socket.io.js"></script><script>
 const socket=io();
-const chats=document.getElementById('chats');
-const input=document.getElementById('msgInput');
-const sendBtn=document.getElementById('sendBtn');
+let myName=localStorage.getItem('mayorName')||prompt('Your name?')||'Anon'; localStorage.setItem('mayorName',myName);
+if(Notification && Notification.permission!=="granted") Notification.requestPermission();
 
+const chats=document.getElementById('chats'),statusPage=document.getElementById('statusPage'),onlineEl=document.getElementById('online');
+const msgInput=document.getElementById('msgInput'),sendBtn=document.getElementById('sendBtn'),emojiBtn=document.getElementById('emojiBtn'),emojiBox=document.getElementById('emojiBox');
+const imgBtn=document.getElementById('imgBtn'),fileInput=document.getElementById('fileInput'),micBtn=document.getElementById('micBtn');
+const tabChat=document.getElementById('tabChat'),tabStatus=document.getElementById('tabStatus'),statusInput=document.getElementById('statusInput'),statusList=document.getElementById('statusList'),statusSend=document.getElementById('statusSend'),statusImgBtn=document.getElementById('statusImgBtn'),statusFile=document.getElementById('statusFile'),chatBar=document.getElementById('chatBar');
+
+['😊','😂','❤️','🔥','😭','😍','👍','🙏','💯','🎉','😎','🥺','🤣','😅','😒','🥰','🤔'].forEach(e=>{let s=document.createElement('span');s.textContent=e;s.onclick=()=>msgInput.value+=e;emojiBox.appendChild(s);});
+emojiBtn.onclick=()=>emojiBox.style.display=emojiBox.style.display==='flex'?'none':'flex';
+
+function notify(m){
+ if(document.hidden && Notification.permission==="granted" && m.id!==socket.id){
+   new Notification(m.name+': '+(m.text||'📷 Photo/Voice'),{body:m.text||'New message',icon:'https://cdn-icons-png.flaticon.com/512/733/733585.png'});
+   // sound
+   let a=new Audio('https://notificationsounds.com/storage/sounds/file-sounds-1150-pristine.mp3'); a.play().catch(()=>{});
+ }
+}
 function addMsg(m){
- if(document.getElementById('mid-'+m.mid)) return; // ANTI-DUPLICATE
- const d=document.createElement('div');
- d.id='mid-'+m.mid;
- d.className='msg '+(m.id===socket.id?'own':'other');
- d.innerHTML=`${m.text}<span class="small">${m.time} ${m.ticks||'✓✓'}</span>`;
- d.ondblclick=()=>{ if(m.id===socket.id && confirm('Delete?')) socket.emit('deleteMsg',m.mid); };
- d.oncontextmenu=(e)=>{ e.preventDefault(); if(m.id===socket.id) socket.emit('deleteMsg',m.mid); };
- chats.appendChild(d);
- chats.scrollTop=chats.scrollHeight;
+ if(document.getElementById('mid-'+m.mid)) return;
+ const d=document.createElement('div'); d.id='mid-'+m.mid; d.className='msg '+(m.id===socket.id?'own':'other');
+ let media='';
+ if(m.image){
+   if(m.image.startsWith('data:audio')||m.image.includes('audio')) media=`<audio controls src="${m.image}"></audio>`;
+   else if(m.image.startsWith('data:video')) media=`<video src="${m.image}" controls style="max-width:100%;border-radius:8px;margin-top:5px"></video>`;
+   else media=`<img src="${m.image}">`;
+ }
+ d.innerHTML=`${m.id!==socket.id?`<div class="name">${m.name}</div>`:''}${m.text?`<div>${m.text}</div>`:''}${media}<span class="small">${m.time} ${m.id===socket.id?m.ticks:''}</span>`;
+ d.oncontextmenu=e=>{e.preventDefault(); if(m.id===socket.id && confirm('Delete for everyone?')) socket.emit('deleteMsg',m.mid);};
+ let timer; d.addEventListener('touchstart',()=>{timer=setTimeout(()=>{if(m.id===socket.id && confirm('Delete?')) socket.emit('deleteMsg',m.mid)},600)}); d.addEventListener('touchend',()=>clearTimeout(timer));
+ chats.appendChild(d); chats.scrollTop=chats.scrollHeight; notify(m);
 }
-socket.on('history',arr=>{ chats.innerHTML=''; arr.forEach(addMsg); });
-socket.on('message',addMsg);
-socket.on('deleteMsg',mid=>{ let el=document.getElementById('mid-'+mid); if(el) el.remove(); });
-socket.on('online',n=>document.getElementById('online').innerText=n+' online');
+function addStatus(s,prepend=false){
+ const d=document.createElement('div'); d.className='status';
+ let media=s.image? (s.image.startsWith('data:video')?`<video src="${s.image}" controls style="max-width:100%"></video>`:`<img src="${s.image}" style="max-width:100%;border-radius:8px">`) :'';
+ d.innerHTML=`<div class="name">${s.name} <small style="color:#8696a0">${s.time}</small></div>${s.text?`<div style="margin-top:4px">${s.text}</div>`:''}${media}`;
+ if(prepend) statusList.prepend(d); else statusList.appendChild(d);
+}
 
-function send(){
- let t=input.value.trim(); if(!t) return;
- socket.emit('message',{text:t}); input.value='';
-}
-sendBtn.onclick=send;
-input.addEventListener('keydown',e=>{ if(e.key==='Enter') send(); });
-</script>
-</body>
-</html>
+socket.on('history',a=>{chats.innerHTML='';a.forEach(addMsg)}); socket.on('message',addMsg);
+socket.on('deleteMsg',mid=>{let el=document.getElementById('mid-'+mid); if(el) el.remove()});
+socket.on('statusHistory',a=>{statusList.innerHTML='';a.forEach(s=>addStatus(s))});
+socket.on('newStatus',s=>addStatus(s,true)); socket.on('online',n=>onlineEl.textContent=n+' online');
+socket.emit('setName',myName);
+
+function sendMsg(){let t=msgInput.value.trim(); if(!t) return; socket.emit('message',{text:t,name:myName}); msgInput.value=''; emojiBox.style.display='none';}
+sendBtn.onclick=sendMsg; msgInput.addEventListener('keydown',e=>{if(e.key==='Enter') sendMsg()});
+imgBtn.onclick=()=>fileInput.click();
+fileInput.onchange=e=>{
+ const f=e.target.files[0]; if(!f) return; const r=new FileReader();
+ r.onload=()=>socket.emit('message',{image:r.result,name:myName,text:msgInput.value}); r.readAsDataURL(f); msgInput.value='';
+};
+
+// VOICE NOTE
+let recorder, chunks=[];
+micBtn.onclick=async()=>{
+ if(micBtn.classList.contains('recording')){
+   recorder.stop(); micBtn.classList.remove('recording'); micBtn.textContent='🎤'; return;
+ }
+ try{
+   let stream=await navigator.mediaDevices.getUserMedia({audio:true});
+   recorder=new MediaRecorder(stream); chunks=[];
+   recorder.ondataavailable=e=>chunks.push(e.data);
+   recorder.onstop=()=>{
+     let blob=new Blob(chunks,{type:'audio/webm'});
+     let reader=new FileReader();
+     reader.onload=()=>socket.emit('message',{image:reader.result,name:myName});
+     reader.readAsDataURL(blob);
+     stream.getTracks().forEach(t=>t.stop());
+   };
+   recorder.start(); micBtn.classList.add('recording'); micBtn.textContent='⏹️';
+ }catch(err){alert('Mic permission denied: '+err.message)}
+};
+
+tabChat.onclick=()=>{tabChat.classList.add('active');tabStatus.classList.remove('active');chats.classList.add('active');statusPage.classList.remove('active');chatBar.style.display='flex';};
+tabStatus.onclick=()=>{tabStatus.classList.add('active');tabChat.classList.remove('active');statusPage.classList.add('active');chats.classList.remove('active');chatBar.style.display='none';};
+
+function sendStatus(){let t=statusInput.value.trim(); if(!t) return; socket.emit('postStatus',{text:t,name:myName}); statusInput.value='';}
+statusSend.onclick=sendStatus; statusInput.addEventListener('keydown',e=>{if(e.key==='Enter') sendStatus()});
+statusImgBtn.onclick=()=>statusFile.click();
+statusFile.onchange=e=>{
+ const f=e.target.files[0]; if(!f) return; const r=new FileReader();
+ r.onload=()=>socket.emit('postStatus',{image:r.result,name:myName,text:statusInput.value}); r.readAsDataURL(f); statusInput.value='';
+};
+</script></body></html>
