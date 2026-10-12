@@ -1,71 +1,103 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MayorChatZ PRO MAX</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MayorChatZ 👑</title>
 <link rel="manifest" href="manifest.json">
-<link rel="icon" href="icon.png">
+<link rel="icon" type="image/png" href="icon.png">
 <link rel="apple-touch-icon" href="icon.png">
 <meta name="theme-color" content="#00a884">
+<meta property="og:title" content="MayorChatZ 👑">
 <meta property="og:image" content="icon.png">
+<meta property="og:description" content="Chat with De Mayors - Fast, Secure">
 <style>
-*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,sans-serif;background:#111b21;height:100vh;display:flex;flex-direction:column}
-#head{background:#202c33;color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center}
-#head b{font-size:16px}#online{font-size:12px;color:#25d366}
-#msgs{flex:1;overflow-y:auto;padding:10px;background:#0b141a url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');display:flex;flex-direction:column;gap:6px}
-.bubble{max-width:75%;padding:8px 10px;border-radius:8px;position:relative;font-size:14.5px;line-height:19px;cursor:pointer}
-.me{align-self:flex-end;background:#005c4b;color:#e9edef;border-top-right-radius:0}
-.other{align-self:flex-start;background:#202c33;color:#e9edef;border-top-left-radius:0}
-.meta{font-size:11px;color:#8696a0;text-align:right;margin-top:4px}
-.me .meta{color:#53bdeb}
-.reply{border-left:3px solid #25d366;background:rgba(0,0,0,.2);padding:4px 6px;margin-bottom:4px;border-radius:4px;font-size:12px;opacity:.8}
-#repBar{background:#182229;color:#25d366;padding:8px 12px;display:none;justify-content:space-between;border-left:4px solid #25d366}
-#inputArea{background:#202c33;padding:8px 10px;display:flex;align-items:flex-end;gap:8px}
-#inp{flex:1;background:#2a3942;border:none;border-radius:8px;padding:10px 12px;color:#fff;outline:none;resize:none;max-height:100px}
-.btn{width:40px;height:40px;border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px}
-#sendBtn{background:#00a884;color:#fff}
-#emojiBtn{background:transparent}
-#emojiPanel{position:absolute;bottom:60px;left:10px;background:#202c33;padding:10px;border-radius:12px;display:none;grid-template-columns:repeat(6,1fr);gap:6px;width:220px;z-index:10}
-#emojiPanel span{font-size:22px;cursor:pointer;padding:4px}
+*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui}
+body{background:#111b21;color:#e9edef;height:100vh;display:flex;flex-direction:column}
+header{background:#202c33;padding:12px 16px;display:flex;justify-content:space-between;align-items:center}
+.tabs{display:flex;background:#202c33}
+.tabs button{flex:1;padding:12px;background:none;border:none;color:#8696a0;font-weight:bold;cursor:pointer}
+.tabs button.active{color:#00a884;border-bottom:3px solid #00a884}
+#views{flex:1;overflow:hidden;position:relative}
+.view{display:none;height:100%;overflow-y:auto}
+.view.active{display:flex;flex-direction:column}
+#chatArea{flex:1;overflow-y:auto;padding:16px;background:#0b141a;background-image:url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1MDAiIGhlaWdodD0iNTAwIj48L3N2Zz4=');}
+.bubble{max-width:70%;padding:8px 12px;border-radius:8px;margin:4px 0;background:#202c33}
+.bubble.me{background:#005c4b;align-self:flex-end}
+.inputBar{display:flex;align-items:center;gap:8px;padding:8px;background:#202c33}
+.inputBar input[type=text]{flex:1;padding:12px;border-radius:24px;border:none;background:#2a3942;color:#fff;outline:none}
+.iconBtn{background:#00a884;border:none;width:44px;height:44px;border-radius:50%;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+#statusList,#groupList{padding:12px}
+.statusItem,.groupItem{padding:12px;background:#202c33;margin-bottom:8px;border-radius:8px;display:flex;align-items:center;gap:12px;cursor:pointer}
 </style>
 </head>
 <body>
-<div id="head"><div><b>MayorChatZ</b> <span id="online">1 online</span> • General</div><button onclick="share()" style="background:#00a884;color:#fff;border:none;padding:6px 12px;border-radius:20px;font-weight:600">Share</button></div>
-<div id="repBar"><div><small id="repName"></small><div id="repText"></div></div><span onclick="cancelRep()" style="cursor:pointer">✕</span></div>
-<div id="msgs"></div>
-<div style="position:relative">
-<div id="emojiPanel"></div>
-<div id="inputArea">
-<button class="btn" id="emojiBtn" onclick="toggleEmoji()">😊</button>
-<textarea id="inp" placeholder="Type a message" rows="1"></textarea>
-<button class="btn" id="sendBtn" onclick="send()">➤</button>
+<header>
+<div><b>MayorChatZ</b> <small id="online" style="color:#00a884">1 online • General</small></div>
+<button style="background:#00a884;border:none;padding:6px 14px;border-radius:20px;color:#fff">Share</button>
+</header>
+
+<div class="tabs">
+<button class="active" onclick="switchTab('chats')">Chats</button>
+<button onclick="switchTab('status')">Status</button>
+<button onclick="switchTab('groups')">Groups</button>
+</div>
+
+<div id="views">
+<div id="chats" class="view active">
+<div id="chatArea"></div>
+<div class="inputBar">
+<button class="iconBtn" onclick="document.getElementById('emojiPicker').style.display='flex'">😊</button>
+<label class="iconBtn" style="background:#2a3942">📷<input type="file" id="photoInput" accept="image/*" hidden></label>
+<input type="text" id="msgInput" placeholder="Type a message">
+<button class="iconBtn" id="micBtn">🎤</button>
+<button class="iconBtn" id="sendBtn">➤</button>
 </div>
 </div>
+
+<div id="status" class="view">
+<div id="statusList">
+<div class="statusItem"><div style="width:44px;height:44px;border-radius:50%;background:#00a884;display:flex;align-items:center;justify-content:center">M</div><div><b>My Status</b><br><small>Tap to add</small></div></div>
+<div class="statusItem"><div style="width:44px;height:44px;border-radius:50%;background:#54656f">👑</div><div><b>De Mayors</b><br><small>5m ago</small></div></div>
+</div>
+</div>
+
+<div id="groups" class="view">
+<div id="groupList">
+<div class="groupItem"><div style="width:44px;height:44px;border-radius:50%;background:#00a884">👥</div><div><b>General</b><br><small>1 member</small></div></div>
+<div class="groupItem" onclick="createGroup()"><div style="width:44px;height:44px;border-radius:50%;background:#2a3942">+</div><div><b>Create Group</b></div></div>
+</div>
+</div>
+</div>
+
+<div id="emojiPicker" style="display:none;position:fixed;bottom:70px;left:10px;background:#202c33;padding:10px;border-radius:12px;gap:6px;flex-wrap:wrap;width:220px">
+<span onclick="addEmoji('😂')">😂</span><span onclick="addEmoji('❤️')">❤️</span><span onclick="addEmoji('🔥')">🔥</span><span onclick="addEmoji('👑')">👑</span><span onclick="addEmoji('😊')">😊</span><span onclick="addEmoji('👍')">👍</span>
+</div>
+
 <script src="/socket.io/socket.io.js"></script>
 <script>
-let replyTo=null;
-const emojis=['😀','😂','😍','🔥','❤️','👑','😭','🥺','💀','🙏','😎','🤣','😅','😊','👍','👏','💯','✨','🎉','😢','🤔','😏','🥰','😜','🤩','😇','🥳','😋','🤫','🤐','😤','🥵','🥶','🤯','😴','🥱','🤠','👻','💩','👀','🫡','💪','🫶','🤝'];
-const panel=document.getElementById('emojiPanel');
-emojis.forEach(e=>{let s=document.createElement('span');s.textContent=e;s.onclick=()=>{inp.value+=e;panel.style.display='none';inp.focus()};panel.appendChild(s)});
-function toggleEmoji(){panel.style.display=panel.style.display==='grid'?'none':'grid'}
-let socket=io();let user=localStorage.getItem('mz_user')||'DE mayors';let room='general';
-socket.emit('join',user);
-socket.on('history',m=>{document.getElementById('msgs').innerHTML='';m.forEach(addMsg)});
-socket.on('message',addMsg);
-socket.on('count',c=>document.getElementById('online').innerText=c+' online');
-function addMsg(d){
-let div=document.createElement('div');div.className='bubble '+(d.user===user?'me':'other');
-let isImg=d.text.match(/\.(jpeg|jpg|gif|png|webp)$/i);
-let content=isImg?`<img src="${d.text}" style="max-width:200px;border-radius:8px">`:`${d.user!=='DE mayors'&&d.user!==user?'<small style="color:#25d366;font-weight:600">'+d.user+'</small><br>':''}${d.reply?`<div class="reply"><b>${d.reply.user}</b><br>${d.reply.text.slice(0,50)}</div>`:''}${d.text}`;
-div.innerHTML=content+`<div class="meta">${new Date(d.time).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})} ✓✓</div>`;
-div.onclick=()=>{replyTo=d;document.getElementById('repBar').style.display='flex';document.getElementById('repName').innerText=d.user;document.getElementById('repText').innerText=d.text.slice(0,40);};
-document.getElementById('msgs').appendChild(div);document.getElementById('msgs').scrollTop=99999;
-}
-function send(){let t=inp.value.trim();if(!t)return;socket.emit('message',{text:t,reply:replyTo?{user:replyTo.user,text:replyTo.text}:null});inp.value='';cancelRep();panel.style.display='none'}
-function cancelRep(){replyTo=null;document.getElementById('repBar').style.display='none'}
-inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}});
-function share(){let txt=`Join my private chat on MayorChatZ PRO MAX 🔒\n${location.href}`;if(navigator.share)navigator.share({title:'MayorChatZ',text:txt,url:location.href});else window.open('https://wa.me/?text='+encodeURIComponent(txt))}
-// PWA
+const socket=io();
+let currentRoom='General';
+function switchTab(t){document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.getElementById(t).classList.add('active');event.target.classList.add('active');}
+function addEmoji(e){document.getElementById('msgInput').value+=e;document.getElementById('emojiPicker').style.display='none';}
+function createGroup(){let n=prompt('Group name?');if(n){let d=document.createElement('div');d.className='groupItem';d.innerHTML=`<div style="width:44px;height:44px;border-radius:50%;background:#00a884">👥</div><div><b>${n}</b><br><small>New group</small></div>`;document.getElementById('groupList').prepend(d);}}
+const chatArea=document.getElementById('chatArea'),msgInput=document.getElementById('msgInput');
+document.getElementById('sendBtn').onclick=send;
+msgInput.addEventListener('keypress',e=>{if(e.key==='Enter')send();});
+function send(){let t=msgInput.value.trim();if(!t)return;addBubble(t,true);socket.emit('message',{room:currentRoom,text:t});msgInput.value='';}
+function addBubble(t,me=false){let d=document.createElement('div');d.className='bubble '+(me?'me':'');d.textContent=t;chatArea.appendChild(d);chatArea.scrollTop=chatArea.scrollHeight;}
+socket.on('message',m=>{addBubble(m.text,false);});
+socket.on('online',n=>{document.getElementById('online').textContent=n+' online • '+currentRoom;});
+// Photo sending
+document.getElementById('photoInput').addEventListener('change',e=>{
+let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{addBubble('📷 Photo',true);let img=document.createElement('img');img.src=r.result;img.style.maxWidth='200px';img.style.borderRadius='8px';img.style.marginTop='6px';chatArea.lastChild.appendChild(img);socket.emit('message',{room:currentRoom,text:'📷 Photo',image:r.result});};r.readAsDataURL(f);
+});
+// Voice note
+let rec, chunks=[];
+document.getElementById('micBtn').addEventListener('click',async()=>{
+if(rec&&rec.state==='recording'){rec.stop();document.getElementById('micBtn').textContent='🎤';return;}
+try{let s=await navigator.mediaDevices.getUserMedia({audio:true});rec=new MediaRecorder(s);chunks=[];rec.ondataavailable=e=>chunks.push(e.data);rec.onstop=()=>{let b=new Blob(chunks,{type:'audio/webm'});let u=URL.createObjectURL(b);let a=document.createElement('audio');a.controls=true;a.src=u;let d=document.createElement('div');d.className='bubble me';d.appendChild(a);chatArea.appendChild(d);};rec.start();document.getElementById('micBtn').textContent='⏹️';}catch{alert('Mic permission needed');}
+});
 if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js')}
 </script>
 </body>
