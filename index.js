@@ -3,7 +3,7 @@ const http=require('http');
 const {Server}=require('socket.io');
 const app=express();
 const server=http.createServer(app);
-const io=new Server(server,{maxHttpBufferSize:50*1024*1024,cors:{origin:"*"}});
+const io=new Server(server,{maxHttpBufferSize:50*1024*1024});
 app.use(express.static('public'));
 let messages=[],statuses=[],groups=[],online=0;
 io.on('connection',s=>{
@@ -20,4 +20,4 @@ s.on('postStatus',st=>{st.time=new Date().toLocaleTimeString();statuses.push(st)
 s.on('createGroup',name=>{let g={id:Date.now(),name};groups.push(g);io.emit('groups',groups);});
 s.on('disconnect',()=>{online--;io.emit('online',online);});
 });
-server.listen(10000,()=>console.log('MayorChatZ V7 Video Fixed Live'));
+server.listen(10000,()=>console.log('Live'));
