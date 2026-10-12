@@ -13,17 +13,12 @@ let online = 0;
 
 io.on('connection', socket => {
   online++;
+  socket.join('General');
   io.emit('online', online);
   console.log('User connected', socket.id);
 
-  socket.on('join', room => {
-    socket.join(room);
-  });
-
-  // THIS IS THE FIX FOR YOUR MESSAGE
   socket.on('message', data => {
-    // data = {room, text, image}
-    io.to(data.room).emit('message', {
+    io.emit('message', {
       text: data.text,
       image: data.image || null,
       id: socket.id,
