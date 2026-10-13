@@ -27,8 +27,8 @@ body{background:#0b0a1a;color:#fff;height:100dvh;display:flex;flex-direction:col
 .ch{background:#1a1033;padding:10px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #2a2350}
 .dot{width:8px;height:8px;background:#00ff88;border-radius:50%;display:inline-block}
 .msgs{flex:1;overflow:auto;padding:15px;display:flex;flex-direction:column;gap:10px;background:#0f0d24}
-.msg{padding:10px 14px;border-radius:18px;max-width:78%;font-size:14px;line-height:1.4;word-break:break-word}
-.msg img,.msg video{max-width:100%;border-radius:12px;margin-top:5px}
+.msg{padding:10px 14px;border-radius:18px;max-width:85%;font-size:14px;line-height:1.4;word-break:break-word}
+.msg img,.msg video{max-width:100%;border-radius:12px;margin-top:5px;display:block}
 .user{background:#ff2a8a;align-self:flex-end;border-bottom-right-radius:4px}
 .bot{background:#2a2350;align-self:flex-start;border-bottom-left-radius:4px}
 .bar{display:flex;align-items:center;gap:7px;padding:8px 8px 12px;background:#1a1033}
@@ -62,7 +62,7 @@ body{background:#0b0a1a;color:#fff;height:100dvh;display:flex;flex-direction:col
  <div class="msgs" id="msgs"></div>
  <div class="bar">
   <button class="ic" onclick="document.getElementById('f').click()">+</button>
-  <input type="file" id="f" accept="image/*,video/*,audio/*" hidden onchange="sendPic(this)">
+  <input type="file" id="f" accept="image/*,video/*" hidden onchange="sendPic(this)">
   <button class="ic" onclick="document.getElementById('f').click()">📷</button>
   <div class="wrap"><input id="inp" placeholder="Type a message..." oninput="check()" onkeydown="if(event.key==='Enter')go()"></div>
   <button class="send" id="sb" onclick="action()">🎤</button>
@@ -73,7 +73,7 @@ let socket = io();
 let cur=null, curName='', rec, chunks=[], isRec=false;
 let me = localStorage.getItem('mc_me')? JSON.parse(localStorage.getItem('mc_me')) : null;
 let allUsers = [], allGroups = [], allStatus = [];
-let allMessages = [];
+let seenMsgs = new Set();
 
 function tab(i){
  [0,1,2].forEach(n=>{
@@ -97,9 +97,7 @@ async function loadUsers(){
    allStatus = await fetch('/api/status').then(r=>r.json());
  }catch(e){}
  let listDiv = document.getElementById('chatList');
- let html = `
-  <div class="item" onclick="openChat('assistant','MayorChatZ Assistant')"><div class="av">M</div><div><div class="nm">MayorChatZ Assistant ●</div><div class="lt">FREE AI Online - Tap to chat...</div></div><div class="tm">now</div></div>
- `;
+ let html = `<div class="item" onclick="openChat('assistant','MayorChatZ Assistant')"><div class="av">M</div><div><div class="nm">MayorChatZ Assistant ●</div><div class="lt">FREE AI Online - Tap to chat...</div></div><div class="tm">now</div></div>`;
  let others = allUsers.filter(u=>u.id!==me?.id);
  if(others.length===0){
    html+=`<div class="empty">No other users yet.<br>Share your link make friends join!<br>When dem register, dem go show here.</div>`;
@@ -137,6 +135,16 @@ async function postStatus(){
 }
 function viewStatus(i){ alert(allStatus[i].name+':\n\n'+(allStatus[i].text||allStatus[i].last)); }
 
+function renderOne(m, cls){
+  let media = '';
+  if(m.file){
+    if(m.fileType && m.fileType.startsWith('video')) media = `<video controls src="${m.file}" playsinline></video>`;
+    else if(m.fileType && m.fileType.startsWith('audio')) media = `<audio controls src="${m.file}" style="width:180px"></audio>`;
+    else media = `<img src="${m.file}">`;
+  }
+  return `<div class="msg ${cls}">${m.text||''}${media}</div>`;
+}
+
 async function openChat(id,name){
  cur=id; curName=name;
  document.getElementById('win').classList.add('on');
@@ -149,7 +157,10 @@ async function openChat(id,name){
  try{
    let msgs = await fetch(`/api/messages?from=${me.id}&to=${id}`).then(r=>r.json());
    if(msgs.length===0) ms.innerHTML=`<div class="msg bot">You don open chat with ${name}.<br>Send message, photo, video, voice note now! 🚀</div>`;
-   else ms.innerHTML = msgs.map(m=>`<div class="msg ${m.from===me.id?'user':'bot'}">${m.text||''}${m.file? (m.fileType&&m.fileType.startsWith('video')? `<video controls src="${m.file}"></video>` : m.fileType&&m.fileType.startsWith('audio')? `<audio controls src="${m.file}" style="width:180px"></audio>` : `<img src="${m.file}">`) : ''}</div>`).join('');
+   else {
+     msgs.forEach(m=>{ if(m.id) seenMsgs.add(m.id + '|' + m.from + '|' + (m.text||'') + '|' + (m.file||'')); });
+     ms.innerHTML = msgs.map(m=>renderOne(m, m.from===me.id?'user':'bot')).join('');
+   }
  }catch(e){ ms.innerHTML=`<div class="msg bot">Chat with ${name} started.</div>`; }
  ms.scrollTop=99999;
 }
@@ -168,30 +179,37 @@ async function go(){
  }
  ms.scrollTop=99999;
 }
-// FIXED: Photo/Video now UPLOAD to server, no more FileReader only
+// FIXED PHOTO / VIDEO - Upload to server, not just preview
 async function sendPic(inp){
  if(!inp.files[0])return;
  let file = inp.files[0];
+ let ms=document.getElementById('msgs');
+ ms.innerHTML+=`<div class="msg user">⏳ Uploading ${file.type.startsWith('video')?'video':'photo'}... please wait</div>`; ms.scrollTop=99999;
  let fd = new FormData(); fd.append('file', file);
  try{
-   let r = await fetch('/api/upload',{method:'POST',body:fd}); let d = await r.json();
+   let r = await fetch('/api/upload',{method:'POST',body:fd});
+   if(!r.ok) throw new Error('Upload failed');
+   let d = await r.json();
+   // Remove the "Uploading..." temp message
+   ms.lastElementChild.remove();
    socket.emit('send-message',{from:me.id,fromName:me.name,to:cur,file:d.url,fileType:d.type,text:'📷 Photo/Video'});
-   alert('Photo/Video sent! ✅ Receiver go see am now!');
- }catch(e){ alert('Upload fail, try again'); }
+ }catch(e){ alert('Upload fail Boss - check file size (max 50MB) or try smaller photo/video. Error: '+e.message); ms.lastElementChild.remove(); }
  inp.value='';
 }
-// FIXED: Voice note now UPLOAD to server
 async function voice(){
  if(isRec){ rec.stop(); return; }
  try{ let s=await navigator.mediaDevices.getUserMedia({audio:true}); rec=new MediaRecorder(s); chunks=[]; isRec=true; document.getElementById('sb').innerText='■'; document.getElementById('sb').style.background='red'; document.getElementById('inp').placeholder='● Recording... tap ■ to stop'; rec.ondataavailable=e=>chunks.push(e.data); rec.onstop=async()=>{ let blob=new Blob(chunks,{type:'audio/webm'}); let fd=new FormData(); fd.append('file', blob, 'voice.webm'); try{ let r=await fetch('/api/upload',{method:'POST',body:fd}); let d=await r.json(); socket.emit('send-message',{from:me.id,fromName:me.name,to:cur,file:d.url,fileType:'audio/webm',text:'🎤 Voice note'}); }catch(e){ let u=URL.createObjectURL(blob); let ms=document.getElementById('msgs'); ms.innerHTML+=`<div class="msg user"><audio controls src="${u}" style="width:180px"></audio></div>`; } s.getTracks().forEach(t=>t.stop()); document.getElementById('sb').innerText='🎤'; document.getElementById('sb').style.background='#ff2a8a'; document.getElementById('inp').placeholder='Type a message...'; isRec=false; }; rec.start(); }catch(e){ alert('Allow mic Boss! 🎤'); }
 }
-// REAL-TIME: When someone message you, e go show instantly
+// FIXED DOUBLE MESSAGE - Dedup by ID
 socket.on('new-message', (m)=>{
+ let key = (m.id||'') + '|' + m.from + '|' + (m.text||'') + '|' + (m.file||'');
+ if(seenMsgs.has(key)) return;
+ seenMsgs.add(key);
  if(m.from===me?.id){
-   if(cur===m.to){ let ms=document.getElementById('msgs'); ms.innerHTML+=`<div class="msg user">${m.text||''}${m.file? (m.fileType&&m.fileType.startsWith('video')? `<video controls src="${m.file}"></video>` : m.fileType&&m.fileType.startsWith('audio')? `<audio controls src="${m.file}" style="width:180px"></audio>` : `<img src="${m.file}">`) : ''}</div>`; ms.scrollTop=99999; }
+   if(cur===m.to){ let ms=document.getElementById('msgs'); ms.innerHTML+=renderOne(m,'user'); ms.scrollTop=99999; }
    return;
  }
- if(cur===m.from || cur===m.to){ let ms=document.getElementById('msgs'); ms.innerHTML+=`<div class="msg bot">${m.text||''}${m.file? (m.fileType&&m.fileType.startsWith('video')? `<video controls src="${m.file}"></video>` : m.fileType&&m.fileType.startsWith('audio')? `<audio controls src="${m.file}" style="width:180px"></audio>` : `<img src="${m.file}">`) : ''}</div>`; ms.scrollTop=99999; }
+ if(cur===m.from || cur===m.to){ let ms=document.getElementById('msgs'); ms.innerHTML+=renderOne(m,'bot'); ms.scrollTop=99999; }
  else { loadUsers(); }
 });
 socket.on('new-group', ()=>loadUsers());
@@ -199,4 +217,4 @@ socket.on('new-status', ()=>loadUsers());
 if(me) loadUsers();
 </script>
 </body>
-   </html>
+ </html>
