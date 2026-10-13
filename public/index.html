@@ -6,6 +6,8 @@
 <title>MayorChatZ</title>
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#ff2e8a">
+<link rel="icon" href="/icon.png">
+<link rel="apple-touch-icon" href="/icon.png">
 <script src="/socket.io/socket.io.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -141,7 +143,6 @@ socket.on('history',arr=>{chatBox.innerHTML='';arr.forEach(addMsg);});
 socket.on('deleteMsg',id=>{let el=document.getElementById('m-'+id); if(el) el.remove();});
 socket.on('online',n=>{document.getElementById('online').innerText='● '+n;});
 
-// PRIVATE + ONLINE + LAST SEEN
 let allUsers=[],currentPrivateId=null,currentPrivateName=null;
 function formatLastSeen(ts){
   const diff=Date.now()-ts;
@@ -195,13 +196,11 @@ socket.on('privateMessage',m=>{
   box.appendChild(d); box.scrollTop=box.scrollHeight;
 });
 socket.on('privateTyping',data=>{
-  if(data.to!==socket.id && data.from!==currentPrivateId) return;
   const el=document.getElementById('privateTyping');
   el.innerText=data.name+' typing...'; el.style.display='block';
   setTimeout(()=>el.style.display='none',2000);
 });
 
-// STATUS
 let tempStatusData=null,tempStatusType=null;
 document.getElementById('statusFile').onchange=e=>{
  const f=e.target.files[0]; if(!f) return;
@@ -211,7 +210,7 @@ document.getElementById('statusFile').onchange=e=>{
 function postStatus(){
  const txt=document.getElementById('statusInput').value.trim();
  if(!txt && !tempStatusData){alert('Write something');return;}
- const st={id:Date.now(),name:myName,text:txt,time:new Date().toLocaleTimeString(),data:tempStatusData,type:tempStatusType||'text'};
+ const st={id:Date.now(),name:myName,text:txt,time:new Date().toLocaleTimeString(),data:tempStatusData,type:tempStatusType};
  socket.emit('postStatus',st);
  document.getElementById('statusInput').value=''; tempStatusData=null; tempStatusType=null; document.getElementById('statusFile').value='';
 }
@@ -231,4 +230,4 @@ msgInput.addEventListener('keydown',e=>{if(e.key==='Enter') sendMsg();});
 document.getElementById('privateInput').addEventListener('keydown',e=>{if(e.key==='Enter') sendPrivate();});
 </script>
 </body>
- </html>
+      </html>
