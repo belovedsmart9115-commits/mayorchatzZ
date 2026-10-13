@@ -16,19 +16,19 @@ header{background:#1a0a24;padding:14px 12px;display:flex;justify-content:space-b
 .tabs div.active{border-bottom:3px solid #ff2e8a;color:#ff2e8a}
 .page{display:none;flex:1;overflow:auto;padding:10px;flex-direction:column}
 .page.active{display:flex}
-#chatBox{flex:1;overflow:auto;display:flex;flex-direction:column;gap:8px;padding-bottom:8px}
+#chatBox,#privateChatBox{flex:1;overflow:auto;display:flex;flex-direction:column;gap:8px;padding-bottom:8px}
 .msg{max-width:78%;padding:9px 11px;border-radius:14px;position:relative;word-break:break-word}
 .me{background:#ff2e8a;align-self:flex-end;border-bottom-right-radius:4px}
 .other{background:#2a1540;align-self:flex-start;border-bottom-left-radius:4px}
 .meta{font-size:11px;opacity:.8;margin-bottom:4px}
 .inputBar{display:flex;gap:7px;padding:8px;background:#1a0a24;align-items:center}
 .inputBar input{flex:1;padding:12px 14px;border-radius:24px;border:none;outline:none;background:#2a1540;color:#fff}
-.inputBar button{padding:12px 14px;border:none;border-radius:50%;background:#ff2e8a;color:#fff;cursor:pointer;font-weight:bold;min-width:44px}
+.inputBar button{padding:12px 14px;border:none;border-radius:50%;background:#ff2e8a;color:#fff;cursor:pointer;min-width:44px}
 img.chat-img{max-width:200px;border-radius:10px;margin-top:5px;display:block}
-video.chat-vid{max-width:230px;border-radius:10px;margin-top:5px;display:block}
-audio{width:210px;margin-top:5px}
+video.chat-vid{max-width:230px;border-radius:10px;margin-top:5px}
 .statusItem{display:flex;gap:10px;padding:12px;background:#2a1540;margin-bottom:8px;border-radius:14px}
 .sCircle{width:42px;height:42px;border-radius:50%;border:2px solid #ff2e8a;display:flex;align-items:center;justify-content:center;font-weight:bold;background:#1a0a24;flex-shrink:0}
+.onlineDot{width:9px;height:9px;border-radius:50%;display:inline-block}
 </style>
 </head>
 <body>
@@ -40,8 +40,23 @@ audio{width:210px;margin-top:5px}
 </div>
 
 <div id="page-chats" class="page active">
+<div id="userList" style="display:flex;gap:8px;overflow:auto;padding:8px 0"></div>
 <div id="typing" style="display:none;color:#ff2e8a;font-style:italic;margin:4px;font-size:13px"></div>
 <div id="chatBox"></div>
+
+<div id="privateBox" style="display:none;position:fixed;bottom:70px;left:4%;right:4%;height:62%;background:#1a0a24;border:2px solid #ff2e8a;border-radius:16px;z-index:999;flex-direction:column;overflow:hidden">
+  <div style="padding:12px;background:#2a1540;display:flex;justify-content:space-between;align-items:center">
+    <div><b id="privateName">Private</b><br><small id="privateStatus" style="color:#00ff88">online</small></div>
+    <button onclick="closePrivate()" style="background:red;border:none;color:#fff;padding:6px 10px;border-radius:50%">X</button>
+  </div>
+  <div id="privateTyping" style="display:none;color:#ff2e8a;font-size:12px;padding:4px 10px;font-style:italic"></div>
+  <div id="privateChatBox"></div>
+  <div class="inputBar">
+    <input id="privateInput" placeholder="Private message...">
+    <button onclick="sendPrivate()">➤</button>
+  </div>
+</div>
+
 <div class="inputBar">
 <button onclick="document.getElementById('fileInput').click()">📎</button>
 <button id="micBtn" onclick="toggleVoice()">🎤</button>
@@ -93,57 +108,31 @@ socket.on('typing',n=>{let t=document.getElementById('typing');t.innerText=n+' i
 socket.on('stopTyping',()=>{document.getElementById('typing').style.display='none';});
 
 function addMsg(m){
- const d=document.createElement('div');
- d.className='msg '+(m.name===myName?'me':'other');
- d.id='m-'+m.mid;
+ const d=document.createElement('div'); d.className='msg '+(m.name===myName?'me':'other'); d.id='m-'+m.mid;
  let c=`<div class="meta">${m.name} • ${m.time}</div>`;
  if(m.type==='image'&&m.data) c+=`<img class="chat-img" src="${m.data}">`;
  if(m.type==='video'&&m.data) c+=`<video class="chat-vid" controls src="${m.data}"></video>`;
  if(m.type==='voice'&&m.data) c+=`<audio controls src="${m.data}"></audio>`;
  c+=`<div>${m.text||''}</div>`;
  if(m.name===myName) c+=`<div style="font-size:11px;text-align:right;margin-top:5px;cursor:pointer" onclick="delMsg('${m.mid}')">🗑️ Delete</div>`;
- d.innerHTML=c;
- chatBox.appendChild(d);
- chatBox.scrollTop=chatBox.scrollHeight;
- document.getElementById('typing').style.display='none';
+ d.innerHTML=c; chatBox.appendChild(d); chatBox.scrollTop=chatBox.scrollHeight;
 }
-function sendMsg(){
- const t=msgInput.value.trim(); if(!t) return;
- const m={mid:Date.now(),name:myName,text:t,time:new Date().toLocaleTimeString(),type:'text'};
- socket.emit('message',m); msgInput.value=''; socket.emit('stopTyping');
-}
+function sendMsg(){const t=msgInput.value.trim(); if(!t) return; const m={mid:Date.now(),name:myName,text:t,time:new Date().toLocaleTimeString(),type:'text'}; socket.emit('message',m); msgInput.value=''; socket.emit('stopTyping');}
 document.getElementById('fileInput').onchange=()=>{
  const file=document.getElementById('fileInput').files[0]; if(!file) return;
- if(file.size>30*1024*1024){alert('File too big! Max 30MB');return;}
+ if(file.size>20*1024*1024){alert('Too big! Max 20MB');return;}
  const reader=new FileReader();
- reader.onload=e=>{
-  let type='image';
-  if(file.type.startsWith('video')) type='video';
-  else if(file.type.startsWith('image')) type='image';
-  const m={mid:Date.now(),name:myName,text:'',time:new Date().toLocaleTimeString(),type:type,data:e.target.result};
-  socket.emit('message',m);
- };
+ reader.onload=e=>{let type=file.type.startsWith('video')?'video':'image'; if(file.type.startsWith('audio')) type='voice'; const m={mid:Date.now(),name:myName,text:'',time:new Date().toLocaleTimeString(),type:type,data:e.target.result}; socket.emit('message',m);};
  reader.readAsDataURL(file);
+ document.getElementById('fileInput').value='';
 };
 let recorder,chunks=[],isRec=false;
 async function toggleVoice(){
  const btn=document.getElementById('micBtn');
  if(!isRec){
-  try{
-   const stream=await navigator.mediaDevices.getUserMedia({audio:true});
-   recorder=new MediaRecorder(stream); chunks=[];
-   recorder.ondataavailable=e=>chunks.push(e.data);
-   recorder.onstop=()=>{
-    const blob=new Blob(chunks,{type:'audio/webm'});
-    const r=new FileReader();
-    r.onload=e=>{
-     const m={mid:Date.now(),name:myName,text:'',time:new Date().toLocaleTimeString(),type:'voice',data:e.target.result};
-     socket.emit('message',m);
-    };
-    r.readAsDataURL(blob);
-   };
-   recorder.start(); isRec=true; btn.innerText='⏹️'; btn.style.background='red';
-  }catch{alert('Allow mic permission');}
+  try{const s=await navigator.mediaDevices.getUserMedia({audio:true}); recorder=new MediaRecorder(s); chunks=[]; recorder.ondataavailable=e=>chunks.push(e.data);
+  recorder.onstop=()=>{const blob=new Blob(chunks,{type:'audio/webm'}); const r=new FileReader(); r.onload=e=>{const m={mid:Date.now(),name:myName,text:'',time:new Date().toLocaleTimeString(),type:'voice',data:e.target.result}; socket.emit('message',m);}; r.readAsDataURL(blob);};
+  recorder.start(); isRec=true; btn.innerText='⏹️'; btn.style.background='red';}catch{alert('Allow mic');}
  }else{recorder.stop(); isRec=false; btn.innerText='🎤'; btn.style.background='#ff2e8a';}
 }
 function delMsg(id){socket.emit('deleteMsg',id);}
@@ -152,52 +141,94 @@ socket.on('history',arr=>{chatBox.innerHTML='';arr.forEach(addMsg);});
 socket.on('deleteMsg',id=>{let el=document.getElementById('m-'+id); if(el) el.remove();});
 socket.on('online',n=>{document.getElementById('online').innerText='● '+n;});
 
+// PRIVATE + ONLINE + LAST SEEN
+let allUsers=[],currentPrivateId=null,currentPrivateName=null;
+function formatLastSeen(ts){
+  const diff=Date.now()-ts;
+  if(diff<60000) return 'last seen just now';
+  if(diff<3600000) return 'last seen '+Math.floor(diff/60000)+'m ago';
+  if(diff<86400000) return 'last seen '+Math.floor(diff/3600000)+'h ago';
+  return 'last seen '+new Date(ts).toLocaleDateString();
+}
+socket.on('userList',list=>{
+  allUsers=list;
+  const box=document.getElementById('userList'); box.innerHTML='';
+  list.forEach(u=>{
+    const isMe=u.id===socket.id;
+    const online=u.online;
+    const dotColor=online?'#00ff88':'#888';
+    const statusText=online?'online':formatLastSeen(u.lastSeen);
+    const d=document.createElement('div');
+    d.style.cssText='background:#2a1540;border:1px solid '+(online?'#ff2e8a':'#444')+';border-radius:20px;padding:7px 12px;font-size:13px;cursor:pointer;white-space:nowrap;display:flex;flex-direction:column';
+    d.innerHTML=`<div style="display:flex;align-items:center;gap:6px"><span class="onlineDot" style="background:${dotColor}"></span> ${u.name} ${isMe?'(You)':''}</div><small style="font-size:10px;color:${online?'#00ff88':'#aaa'}">${statusText}</small>`;
+    if(!isMe) d.onclick=()=>openPrivate(u.id,u.name,u.online,u.lastSeen);
+    box.appendChild(d);
+  });
+});
+function openPrivate(id,name,online,lastSeen){
+  currentPrivateId=id; currentPrivateName=name;
+  document.getElementById('privateName').innerText=name;
+  document.getElementById('privateStatus').innerText=online?'online':formatLastSeen(lastSeen);
+  document.getElementById('privateStatus').style.color=online?'#00ff88':'#aaa';
+  document.getElementById('privateBox').style.display='flex';
+  document.getElementById('privateChatBox').innerHTML='';
+}
+function closePrivate(){document.getElementById('privateBox').style.display='none'; currentPrivateId=null;}
+function sendPrivate(){
+  const t=document.getElementById('privateInput').value.trim(); if(!t||!currentPrivateId) return;
+  const m={mid:Date.now(),name:myName,text:t,time:new Date().toLocaleTimeString(),type:'text',to:currentPrivateId,from:socket.id,isPrivate:true};
+  socket.emit('privateMessage',{to:currentPrivateId,msg:m});
+  document.getElementById('privateInput').value='';
+}
+document.getElementById('privateInput').addEventListener('input',()=>{
+  if(currentPrivateId) socket.emit('privateTyping',{to:currentPrivateId,name:myName});
+});
+socket.on('privateMessage',m=>{
+  const box=document.getElementById('privateChatBox');
+  if(document.getElementById('privateBox').style.display==='none'){
+    const otherId=m.name===myName?m.to:m.from;
+    const u=allUsers.find(x=>x.id===otherId);
+    openPrivate(otherId,m.name===myName?currentPrivateName:m.name,u?u.online:true,u?u.lastSeen:Date.now());
+  }
+  const d=document.createElement('div'); d.className='msg '+(m.name===myName?'me':'other');
+  d.innerHTML=`<div class="meta">${m.name} • ${m.time} (private)</div><div>${m.text}</div>`;
+  box.appendChild(d); box.scrollTop=box.scrollHeight;
+});
+socket.on('privateTyping',data=>{
+  if(data.to!==socket.id && data.from!==currentPrivateId) return;
+  const el=document.getElementById('privateTyping');
+  el.innerText=data.name+' typing...'; el.style.display='block';
+  setTimeout(()=>el.style.display='none',2000);
+});
+
+// STATUS
 let tempStatusData=null,tempStatusType=null;
 document.getElementById('statusFile').onchange=e=>{
  const f=e.target.files[0]; if(!f) return;
- if(f.size>12*1024*1024){alert('Status video too big! Max 12MB - use small video');return;}
- const r=new FileReader();
- r.onload=ev=>{
-  tempStatusData=ev.target.result;
-  tempStatusType=f.type.startsWith('video')?'video':'image';
-  alert('✅ File ready! Now write text and tap Post');
- };
- r.readAsDataURL(f);
+ if(f.size>12*1024*1024){alert('Status too big! Max 12MB');return;}
+ const r=new FileReader(); r.onload=ev=>{tempStatusData=ev.target.result; tempStatusType=f.type.startsWith('video')?'video':'image'; alert('✅ Ready! Write text and Post');}; r.readAsDataURL(f);
 };
 function postStatus(){
  const txt=document.getElementById('statusInput').value.trim();
- if(!txt && !tempStatusData){alert('Write something or attach file');return;}
+ if(!txt && !tempStatusData){alert('Write something');return;}
  const st={id:Date.now(),name:myName,text:txt,time:new Date().toLocaleTimeString(),data:tempStatusData,type:tempStatusType||'text'};
  socket.emit('postStatus',st);
- document.getElementById('statusInput').value='';
- tempStatusData=null; tempStatusType=null;
- document.getElementById('statusFile').value='';
+ document.getElementById('statusInput').value=''; tempStatusData=null; tempStatusType=null; document.getElementById('statusFile').value='';
 }
 function addStatus(s){
- const box=document.getElementById('statusBox');
- const d=document.createElement('div'); d.className='statusItem';
- let media='';
- if(s.data && s.type==='image') media=`<img style="width:100%;border-radius:12px;margin-top:8px" src="${s.data}">`;
+ const box=document.getElementById('statusBox'); const d=document.createElement('div'); d.className='statusItem';
+ let media=''; if(s.data && s.type==='image') media=`<img style="width:100%;border-radius:12px;margin-top:8px" src="${s.data}">`;
  if(s.data && s.type==='video') media=`<video style="width:100%;border-radius:12px;margin-top:8px" controls src="${s.data}"></video>`;
  d.innerHTML=`<div class="sCircle">${s.name.charAt(0).toUpperCase()}</div><div style="flex:1"><b>${s.name}</b><br><small>${s.time}</small><div style="margin-top:6px">${s.text||''}</div>${media}</div>`;
  box.prepend(d);
 }
 socket.on('newStatus',addStatus);
 socket.on('statusHistory',arr=>{document.getElementById('statusBox').innerHTML='';arr.forEach(addStatus);});
-function createGroup(){
- const n=document.getElementById('groupInput').value.trim(); if(!n) return;
- socket.emit('createGroup',n); document.getElementById('groupInput').value='';
-}
-socket.on('groups',arr=>{
- const b=document.getElementById('groupBox'); b.innerHTML='';
- arr.forEach(g=>{
-  const d=document.createElement('div'); d.className='statusItem';
-  d.innerHTML=`<div class="sCircle">👥</div><div>${g.name}</div>`;
-  b.appendChild(d);
- });
-});
+function createGroup(){const n=document.getElementById('groupInput').value.trim(); if(!n) return; socket.emit('createGroup',n); document.getElementById('groupInput').value='';}
+socket.on('groups',arr=>{const b=document.getElementById('groupBox'); b.innerHTML=''; arr.forEach(g=>{const d=document.createElement('div'); d.className='statusItem'; d.innerHTML=`<div class="sCircle">👥</div><div>${g.name}</div>`; b.appendChild(d);});});
 function copyLink(){navigator.clipboard.writeText(location.href); alert('Link copied!');}
 msgInput.addEventListener('keydown',e=>{if(e.key==='Enter') sendMsg();});
+document.getElementById('privateInput').addEventListener('keydown',e=>{if(e.key==='Enter') sendPrivate();});
 </script>
 </body>
-</html>
+ </html>
