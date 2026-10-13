@@ -4,113 +4,148 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MayorChatZ</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:sans-serif}
-body{background:#0b0a1a;color:white;height:100vh;display:flex;flex-direction:column}
-.header{background:#1a1033;padding:12px 15px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #2a2350}
-.tabs{display:flex;background:#1a1033;border-bottom:2px solid #2a2350}
-.tab{flex:1;padding:12px;text-align:center;cursor:pointer;color:#aaa}
-.tab.active{color:#ff2a8a;border-bottom:3px solid #ff2a8a}
-.chat-list{flex:1;overflow-y:auto}
-.chat-item{display:flex;gap:12px;padding:12px;border-bottom:1px solid #1f1a3a;cursor:pointer}
-.chat-item:hover{background:#1f1a3a}
-.avatar{width:45px;height:45px;border-radius:50%;background:#ff2a8a;display:flex;align-items:center;justify-content:center;font-weight:bold}
-.info{flex:1}
-.name{font-weight:bold;display:flex;gap:5px}
-.last{color:#aaa;font-size:13px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.time{font-size:11px;color:#aaa}
-.chat-window{display:none;flex-direction:column;height:100vh;position:fixed;top:0;left:0;right:0;background:#0b0a1a;z-index:10}
-.chat-header{background:#1a1033;padding:10px 15px;display:flex;align-items:center;gap:10px}
-.status-dot{width:8px;height:8px;background:#00ff88;border-radius:50%;display:inline-block}
-.online{font-size:12px;color:#00ff88}
-.lastseen{font-size:11px;color:#aaa}
-.msgs{flex:1;overflow-y:auto;padding:15px;display:flex;flex-direction:column;gap:10px;background:#0f0d24}
-.msg{padding:10px 14px;border-radius:18px;max-width:75%;font-size:14px}
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
+body{background:#0b0a1a;color:#fff;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+.h{background:#1a1033;padding:12px 15px;display:flex;justify-content:space-between;border-bottom:1px solid #2a2350;font-weight:bold}
+.tabs{display:flex;background:#1a1033}
+.tab{flex:1;padding:13px;text-align:center;color:#888;cursor:pointer;border-bottom:3px solid transparent;font-size:14px}
+.tab.active{color:#ff2a8a;border-bottom-color:#ff2a8a}
+.list{flex:1;overflow:auto}
+.item{display:flex;gap:12px;padding:13px;border-bottom:1px solid #15122e;cursor:pointer}
+.item:active{background:#1f1a3a}
+.av{width:46px;height:46px;border-radius:50%;background:#ff2a8a;display:flex;align-items:center;justify-content:center;font-weight:bold;flex-shrink:0}
+.nm{font-weight:bold;font-size:15px}
+.lt{color:#999;font-size:13px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tm{font-size:11px;color:#888;margin-left:auto}
+.panel{display:none;flex:1;overflow:auto}
+.panel.on{display:block}
+.win{display:none;flex-direction:column;height:100dvh;position:fixed;inset:0;background:#0b0a1a;z-index:99}
+.win.on{display:flex}
+.ch{background:#1a1033;padding:10px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #2a2350}
+.dot{width:8px;height:8px;background:#00ff88;border-radius:50%;display:inline-block}
+.msgs{flex:1;overflow:auto;padding:15px;display:flex;flex-direction:column;gap:10px;background:#0f0d24}
+.msg{padding:10px 14px;border-radius:18px;max-width:78%;font-size:14px;line-height:1.4}
+.msg img{max-width:100%;border-radius:12px}
 .user{background:#ff2a8a;align-self:flex-end;border-bottom-right-radius:4px}
 .bot{background:#2a2350;align-self:flex-start;border-bottom-left-radius:4px}
-.input-area{display:flex;padding:10px;background:#1a1033;gap:10px;align-items:center}
-input{flex:1;padding:12px 18px;border-radius:25px;border:none;background:#2a2350;color:white;outline:none}
-button{background:#ff2a8a;border:none;width:45px;height:45px;border-radius:50%;color:white;font-size:18px;cursor:pointer}
-.back{font-size:22px;cursor:pointer}
+.bar{display:flex;align-items:center;gap:7px;padding:8px 8px 12px;background:#1a1033}
+.ic{width:40px;height:40px;border-radius:50%;background:#2a2350;border:none;color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.wrap{flex:1;background:#2a2350;border-radius:24px;display:flex;align-items:center;padding:0 14px}
+.wrap input{flex:1;background:transparent;border:none;color:#fff;outline:none;padding:12px 0;font-size:15px}
+.send{width:46px;height:46px;border-radius:50%;background:#ff2a8a;border:none;color:#fff;font-size:20px;cursor:pointer;flex-shrink:0}
 </style>
 </head>
 <body>
-<div class="header"><b>MayorChatZ</b><span>🔗 • 1</span></div>
-<div class="tabs"><div class="tab active">💬 Chats</div><div class="tab">📸 Status</div><div class="tab">👥 Groups</div></div>
-
-<div class="chat-list" id="chatList">
-  <div class="chat-item" onclick="openChat('assistant')">
-    <div class="avatar">M</div>
-    <div class="info"><div class="name">MayorChatZ Assistant <span style="color:#00ff88">●</span></div><div class="last">Ask me anything! I'm online now...</div></div>
-    <div class="time">now</div>
-  </div>
-  <div class="chat-item" onclick="openChat('mayor')">
-    <div class="avatar" style="background:#6c5ce7">B</div>
-    <div class="info"><div class="name">Mayor (You)</div><div class="last">Hey, check my bot...</div></div>
-    <div class="time">10:32</div>
-  </div>
+<div class="h"><span>MayorChatZ</span><span>🔍 ⋮</span></div>
+<div class="tabs">
+ <div class="tab active" id="t0" onclick="tab(0)">Chats</div>
+ <div class="tab" id="t1" onclick="tab(1)">Status</div>
+ <div class="tab" id="t2" onclick="tab(2)">Groups</div>
 </div>
 
-<div class="chat-window" id="chatWindow">
-  <div class="chat-header">
-    <span class="back" onclick="closeChat()">←</span>
-    <div class="avatar" id="cAvatar">M</div>
-    <div style="flex:1">
-      <div style="font-weight:bold" id="cName">MayorChatZ Assistant</div>
-      <div><span class="status-dot"></span> <span class="online" id="cOnline">Online</span> • <span class="lastseen" id="cLast">Last seen today at 10:35 PM</span></div>
-    </div>
-  </div>
-  <div class="msgs" id="msgs"></div>
-  <div class="input-area">
-    <button>📎</button><button>🎤</button>
-    <input id="msgInput" placeholder="Type a message..." onkeypress="if(event.key==='Enter')sendMsg()">
-    <button onclick="sendMsg()">➤</button>
-  </div>
+<div class="list panel on" id="p0">
+ <div class="item" onclick="openChat('a')"><div class="av">M</div><div><div class="nm">MayorChatZ Assistant ●</div><div class="lt">FREE AI Online - Tap to chat...</div></div><div class="tm">now</div></div>
+ <div class="item" onclick="openChat('b')"><div class="av" style="background:#6c5ce7">B</div><div><div class="nm">Mayor (You)</div><div class="lt">Check my bot...</div></div><div class="tm">10:32</div></div>
+</div>
+
+<div class="panel" id="p1">
+ <div class="item"><div class="av">M</div><div><div class="nm">My Status</div><div class="lt">Tap to add status update</div></div></div>
+ <div style="padding:10px 15px;color:#777;font-size:12px">RECENT UPDATES</div>
+ <div class="item"><div class="av" style="background:#00cec9">S</div><div><div class="nm">Sarah</div><div class="lt">Today, 8:15 PM - Tap to view</div></div></div>
+ <div class="item"><div class="av" style="background:#e17055">J</div><div><div class="nm">John</div><div class="lt">Today, 6:30 PM</div></div></div>
+</div>
+
+<div class="panel" id="p2">
+ <div class="item"><div class="av" style="background:#fdcb6e">👑</div><div><div class="nm">MayorChatZ Fans (128)</div><div class="lt">Mayor: Welcome 🔥</div></div></div>
+ <div class="item"><div class="av" style="background:#00b894">💻</div><div><div class="nm">Dev Group (12)</div><div class="lt">You: FREE AI don work!</div></div></div>
+</div>
+
+<div class="win" id="win">
+ <div class="ch">
+  <div style="font-size:22px;cursor:pointer" onclick="closeChat()">←</div>
+  <div class="av" id="ca">M</div>
+  <div style="flex:1"><div id="cn" style="font-weight:bold">MayorChatZ Assistant</div><div style="font-size:11px"><span class="dot"></span> <span style="color:#00ff88">Online</span> • <span style="color:#aaa" id="cl">Last seen today at 10:35 PM</span></div></div>
+ </div>
+ <div class="msgs" id="msgs"></div>
+ <div class="bar">
+  <button class="ic" onclick="document.getElementById('f').click()">+</button>
+  <input type="file" id="f" accept="image/*" hidden onchange="sendPic(this)">
+  <button class="ic" onclick="document.getElementById('f').click()">O</button>
+  <div class="wrap"><input id="inp" placeholder="Type a message..." oninput="check()" onkeydown="if(event.key==='Enter')go()"></div>
+  <button class="send" id="sb" onclick="action()">></button>
+ </div>
 </div>
 
 <script>
-let current = 'assistant';
-function openChat(who){
- document.getElementById('chatWindow').style.display='flex';
- current=who;
- let msgs=document.getElementById('msgs');
- msgs.innerHTML='';
- if(who==='assistant'){
-   document.getElementById('cName').innerText='MayorChatZ Assistant';
-   document.getElementById('cOnline').innerText='Online';
-   document.getElementById('cLast').innerText='Last seen today at 10:35 PM';
-   document.getElementById('cAvatar').innerText='M';
-   msgs.innerHTML=`<div class="msg bot">Hello Boss! 🔥 I be MayorChatZ Assistant! Your FREE AI don dey live! Wetin you wan ask me today?</div>`;
+function tab(i){
+ [0,1,2].forEach(n=>{
+   document.getElementById('t'+n).classList.toggle('active',n===i);
+   document.getElementById('p'+n).classList.toggle('on',n===i);
+ });
+}
+let cur='a', rec, chunks=[], isRec=false;
+function openChat(w){
+ document.getElementById('win').classList.add('on');
+ cur=w; let m=document.getElementById('msgs'); m.innerHTML='';
+ if(w==='a'){
+   document.getElementById('cn').innerText='MayorChatZ Assistant';
+   document.getElementById('cl').innerText='Last seen today at 10:35 PM';
+   document.getElementById('ca').innerText='M';
+   m.innerHTML='<div class="msg bot">Hello Boss! 🔥 I be MayorChatZ! FREE AI don live! Ask me anything - I go reply sharp!</div>';
  }else{
-   document.getElementById('cName').innerText='Mayor (You)';
-   document.getElementById('cOnline').innerText='Online';
-   document.getElementById('cLast').innerText='Last seen just now';
-   document.getElementById('cAvatar').innerText='B';
-   msgs.innerHTML=`<div class="msg bot">This na your private chat preview Boss 😌</div>`;
+   document.getElementById('cn').innerText='Mayor (You)';
+   document.getElementById('cl').innerText='Last seen just now';
+   document.getElementById('ca').innerText='B';
+   m.innerHTML='<div class="msg bot">Private chat ready - send photo, voice note Boss 😌</div>';
  }
 }
-function closeChat(){document.getElementById('chatWindow').style.display='none';}
-async function sendMsg(){
- let input=document.getElementById('msgInput');
- let text=input.value.trim();
- if(!text)return;
- let msgs=document.getElementById('msgs');
- msgs.innerHTML+=`<div class="msg user">${text}</div>`;
- input.value='';
- msgs.scrollTop=msgs.scrollHeight;
- if(current!=='assistant'){
-   setTimeout(()=>{msgs.innerHTML+=`<div class="msg bot">Seen ✅</div>`;msgs.scrollTop=msgs.scrollHeight;},800);
-   return;
- }
+function closeChat(){document.getElementById('win').classList.remove('on');}
+function check(){
+ let t=document.getElementById('inp').value.trim();
+ document.getElementById('sb').innerText=t?'➤':'🎤';
+}
+function action(){
+ let t=document.getElementById('inp').value.trim();
+ if(t) go(); else voice();
+}
+async function go(){
+ let i=document.getElementById('inp'); let t=i.value.trim(); if(!t)return;
+ let ms=document.getElementById('msgs'); ms.innerHTML+=`<div class="msg user">${t}</div>`; i.value=''; check(); ms.scrollTop=99999;
+ if(cur!=='a'){ setTimeout(()=>{ms.innerHTML+=`<div class="msg bot">Seen ✓✓</div>`;ms.scrollTop=99999;},500); return; }
  try{
-   let res=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text})});
-   let data=await res.json();
-   msgs.innerHTML+=`<div class="msg bot">${data.reply}</div>`;
- }catch(e){
-   msgs.innerHTML+=`<div class="msg bot">Network slow small Boss, try again! 😅</div>`;
- }
- msgs.scrollTop=msgs.scrollHeight;
+   let r=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:t})});
+   let d=await r.json(); ms.innerHTML+=`<div class="msg bot">${d.reply}</div>`;
+ }catch(e){ms.innerHTML+=`<div class="msg bot">Network slow Boss, try again 😅</div>`;}
+ ms.scrollTop=99999;
 }
-openChat('assistant');
+function sendPic(inp){
+ if(!inp.files[0])return; let rd=new FileReader();
+ rd.onload=e=>{
+   let ms=document.getElementById('msgs');
+   ms.innerHTML+=`<div class="msg user"><img src="${e.target.result}"><br>📷 Photo</div>`;
+   ms.scrollTop=99999;
+   if(cur==='a') setTimeout(()=>{ms.innerHTML+=`<div class="msg bot">Fine photo Boss! 🔥 I don see am!</div>`;ms.scrollTop=99999;},700);
+ }; rd.readAsDataURL(inp.files[0]); inp.value='';
+}
+async function voice(){
+ if(isRec){ rec.stop(); return; }
+ try{
+   let s=await navigator.mediaDevices.getUserMedia({audio:true});
+   rec=new MediaRecorder(s); chunks=[]; isRec=true;
+   document.getElementById('sb').innerText='■'; document.getElementById('sb').style.background='red';
+   document.getElementById('inp').placeholder='● Recording... tap ■ to stop';
+   rec.ondataavailable=e=>chunks.push(e.data);
+   rec.onstop=()=>{
+     let b=new Blob(chunks,{type:'audio/webm'}); let u=URL.createObjectURL(b);
+     let ms=document.getElementById('msgs');
+     ms.innerHTML+=`<div class="msg user"><audio controls src="${u}" style="width:180px"></audio><br>🎤 Voice note</div>`;
+     ms.scrollTop=99999; s.getTracks().forEach(t=>t.stop());
+     document.getElementById('sb').innerText='🎤'; document.getElementById('sb').style.background='#ff2a8a';
+     document.getElementById('inp').placeholder='Type a message...'; isRec=false;
+   }; rec.start();
+ }catch(e){ alert('Allow microphone Boss! 🎤'); }
+}
+openChat('a');
 </script>
 </body>
-</html>
+  </html>
