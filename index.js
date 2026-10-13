@@ -27,11 +27,10 @@ let users = [];
 let groups = [{ id: 'g1', name: 'General', desc: 'General group chat', members: 1 }];
 let statuses = [];
 let messages = [];
-let online = {}; // userId -> name
+let online = {};
 
 app.post('/api/register', (req, res) => {
   const { name, id } = req.body;
-  // FIX: If phone already get ID, use am. If not, find by name.
   let user = null;
   if (id) user = users.find(u => u.id === id);
   if (!user) user = users.find(u => u.name === name);
@@ -41,7 +40,6 @@ app.post('/api/register', (req, res) => {
 });
 
 app.get('/api/users', (req, res) => {
-  // Add online status
   const list = users.map(u => ({...u, online:!!online[u.id] }));
   res.json(list);
 });
@@ -52,7 +50,7 @@ app.post('/api/groups', (req, res) => {
 });
 app.get('/api/status', (req, res) => res.json(statuses));
 app.post('/api/status', (req, res) => {
-  const s = { id: 's' + Date.now(), name: req.body.name || 'Me', text: req.body.text || req.body.last, last: req.body.text || req.body.last, time: new Date().toLocaleString() };
+  const s = { id: 's' + Date.now(), name: req.body.name || 'Me', text: req.body.text || req.body.last, last: req.body.text || req.body.last, file: req.body.file || null, fileType: req.body.fileType || '', time: new Date().toLocaleString() };
   statuses.unshift(s); io.emit('new-status', s); res.json(s);
 });
 app.get('/api/messages', (req, res) => {
@@ -79,14 +77,13 @@ io.on('connection', (socket) => {
     myId = userId;
     if (userId) online[userId] = userName || userId;
     io.emit('online-users', Object.keys(online));
-    // Tell everybody to refresh list so online dot go show
     io.emit('users-changed');
   });
   socket.on('send-message', (m) => {
     m.id = Date.now() + '_' + Math.random().toString(36).slice(2,8);
     m.time = new Date().toLocaleTimeString();
     messages.push(m);
-    io.emit('new-message', m); // ONLY ONE
+    io.emit('new-message', m);
   });
   socket.on('disconnect', () => {
     if (myId) delete online[myId];
