@@ -13,10 +13,11 @@ body{background:#0b0a1a;color:#fff;height:100dvh;display:flex;flex-direction:col
 .tab.active{color:#ff2a8a;border-bottom-color:#ff2a8a}
 .fab{position:fixed;bottom:20px;right:20px;width:56px;height:56px;border-radius:50%;background:#ff2a8a;color:#fff;border:none;font-size:28px;cursor:pointer;z-index:5;box-shadow:0 4px 12px rgba(0,0,0,.4)}
 .list{flex:1;overflow:auto}
-.item{display:flex;gap:12px;padding:13px;border-bottom:1px solid #15122e;cursor:pointer}
+.item{display:flex;gap:12px;padding:13px;border-bottom:1px solid #15122e;cursor:pointer;align-items:center}
 .item:active{background:#1f1a3a}
-.av{width:46px;height:46px;border-radius:50%;background:#ff2a8a;display:flex;align-items:center;justify-content:center;font-weight:bold;flex-shrink:0;overflow:hidden}
+.av{width:46px;height:46px;border-radius:50%;background:#ff2a8a;display:flex;align-items:center;justify-content:center;font-weight:bold;flex-shrink:0;overflow:hidden;position:relative}
 .av img{width:100%;height:100%;object-fit:cover}
+.online-dot{width:12px;height:12px;background:#00ff88;border-radius:50%;border:2px solid #0b0a1a;position:absolute;bottom:0;right:0}
 .nm{font-weight:bold;font-size:15px}
 .lt{color:#999;font-size:13px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
 .tm{font-size:11px;color:#888;margin-left:auto}
@@ -44,7 +45,7 @@ body{background:#0b0a1a;color:#fff;height:100dvh;display:flex;flex-direction:col
 </head>
 <body>
 <div id="login"><h2>MayorChatZ 🔥</h2><p style="color:#999">Enter your name to join</p><input id="myName" placeholder="Your name e.g. Mayor"><button onclick="join()">Join Chat 🚀</button></div>
-<div class="h"><span>MayorChatZ</span><span id="meLabel"></span></div>
+<div class="h"><span>MayorChatZ</span><span id="meLabel"></span><button onclick="logout()" style="background:#2a2350;color:#fff;border:none;padding:6px 10px;border-radius:8px;font-size:12px">Logout</button></div>
 <div class="tabs">
  <div class="tab active" id="t0" onclick="tab(0)">Chats</div>
  <div class="tab" id="t1" onclick="tab(1)">Status</div>
@@ -72,23 +73,26 @@ body{background:#0b0a1a;color:#fff;height:100dvh;display:flex;flex-direction:col
 let socket = io();
 let cur=null, curName='', rec, chunks=[], isRec=false;
 let me = localStorage.getItem('mc_me')? JSON.parse(localStorage.getItem('mc_me')) : null;
-let allUsers = [], allGroups = [], allStatus = [];
+let allUsers = [], allGroups = [], allStatus = [], onlineIds = new Set();
 let seenMsgs = new Set();
+let lastMsgs = {}; // for preview: userId -> last text
 
-function tab(i){
- [0,1,2].forEach(n=>{
-   document.getElementById('t'+n).classList.toggle('active',n===i);
-   document.getElementById('p'+n).classList.toggle('on',n===i);
- });
-}
+function logout(){ localStorage.removeItem('mc_me'); location.reload(); }
+function tab(i){ [0,1,2].forEach(n=>{ document.getElementById('t'+n).classList.toggle('active',n===i); document.getElementById('p'+n).classList.toggle('on',n===i); }); }
+
 async function join(){
  let name = document.getElementById('myName').value.trim(); if(!name) return alert('Enter name');
- let r = await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
+ // Keep old ID if e exist, so server no create duplicate
+ let oldId = me? me.id : ('u' + Date.now());
+ let r = await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name, id: oldId})});
  me = await r.json(); localStorage.setItem('mc_me', JSON.stringify(me));
  document.getElementById('login').style.display='none'; document.getElementById('meLabel').innerText='Hi, '+me.name;
- socket.emit('join', me.id); loadUsers();
+ socket.emit('join', me.id, me.name); loadUsers();
 }
-if(me){ document.getElementById('login').style.display='none'; document.getElementById('meLabel').innerText='Hi, '+me.name; socket.emit('join', me.id); }
+if(me){ document.getElementById('login').style.display='none'; document.getElementById('meLabel').innerText='Hi, '+me.name;
+  // Re-register with same ID so server recognize you after restart
+  fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:me.name, id:me.id})}).then(()=>{ socket.emit('join', me.id, me.name); loadUsers(); });
+}
 
 async function loadUsers(){
  try{
@@ -97,20 +101,22 @@ async function loadUsers(){
    allStatus = await fetch('/api/status').then(r=>r.json());
  }catch(e){}
  let listDiv = document.getElementById('chatList');
- let html = `<div class="item" onclick="openChat('assistant','MayorChatZ Assistant')"><div class="av">M</div><div><div class="nm">MayorChatZ Assistant ●</div><div class="lt">FREE AI Online - Tap to chat...</div></div><div class="tm">now</div></div>`;
- let others = allUsers.filter(u=>u.id!==me?.id);
+ let html = `<div class="item" onclick="openChat('assistant','MayorChatZ Assistant')"><div class="av">M<span class="online-dot"></span></div><div><div class="nm">MayorChatZ Assistant ●</div><div class="lt">FREE AI Online - Tap to chat...</div></div><div class="tm">now</div></div>`;
+ // FIX: Filter by BOTH id and name - you no go see yourself again
+ let others = allUsers.filter(u=> u.id!==me?.id && u.name!==me?.name);
  if(others.length===0){
-   html+=`<div class="empty">No other users yet.<br>Share your link make friends join!<br>When dem register, dem go show here.</div>`;
+   html+=`<div class="empty">No other users yet.<br>Share your link make friends join!<br>When dem register, dem go show here.<br><br>⚠️ If your friend don join but you no see am,<br>make dem click <b>Logout</b> and join again with same name.</div>`;
  }else{
    others.forEach((u)=>{
      let name = u.name; let letter = name[0].toUpperCase();
-     html+=`<div class="item" onclick="openChat('${u.id}','${name}')"><div class="av">${letter}</div><div><div class="nm">${name}</div><div class="lt">Tap to chat</div></div><div class="tm">online</div></div>`;
+     let isOnline = onlineIds.has(u.id) || u.online;
+     let preview = lastMsgs[u.id] || 'Tap to chat';
+     html+=`<div class="item" onclick="openChat('${u.id}','${name}')"><div class="av">${letter}${isOnline?'<span class="online-dot"></span>':''}</div><div><div class="nm">${name}</div><div class="lt">${preview}</div></div><div class="tm">${isOnline?'online':'offline'}</div></div>`;
    });
  }
  listDiv.innerHTML=html;
  renderGroups(); renderStatus();
 }
-
 function renderGroups(){
  let g=document.getElementById('groupList');
  if(allGroups.length===0){ g.innerHTML='<div class="empty">No groups yet. Click + to create group!</div>'; return; }
@@ -120,21 +126,10 @@ function renderStatus(){
  let s=document.getElementById('statusList');
  if(allStatus.length===0){ s.innerHTML='<div class="empty">No status yet. Click + to post!</div>'; return; }
  s.innerHTML = allStatus.map((st,i)=>`<div class="item" onclick="viewStatus(${i})"><div class="av" style="background:${i==0?'#ff2a8a':'#00cec9'}">${(st.avatar||st.name[0])}</div><div><div class="nm">${st.name}</div><div class="lt">${st.text||st.last}</div></div></div>`).join('');
- s.innerHTML+=`<div style="padding:10px 15px;color:#777;font-size:12px">RECENT UPDATES - Tap to view</div>`;
 }
-async function createGroup(){
- let name=prompt('Group name?'); if(!name)return;
- let last=prompt('Group description?')||'New group created';
- await fetch('/api/groups',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,desc:last,members:1,createdBy:me?.name||'Mayor'})});
- loadUsers(); tab(2);
-}
-async function postStatus(){
- let text=prompt('Wetin you wan post for status?'); if(!text)return;
- await fetch('/api/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:me?.name||'Me',text,last:text})});
- loadUsers(); tab(1); alert('Status posted! 🔥 Everyone go see am!');
-}
+async function createGroup(){ let name=prompt('Group name?'); if(!name)return; let last=prompt('Group description?')||'New group created'; await fetch('/api/groups',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,desc:last,members:1,createdBy:me?.name||'Mayor'})}); loadUsers(); tab(2); }
+async function postStatus(){ let text=prompt('Wetin you wan post for status?'); if(!text)return; await fetch('/api/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:me?.name||'Me',text,last:text})}); loadUsers(); tab(1); alert('Status posted! 🔥 Everyone go see am!'); }
 function viewStatus(i){ alert(allStatus[i].name+':\n\n'+(allStatus[i].text||allStatus[i].last)); }
-
 function renderOne(m, cls){
   let media = '';
   if(m.file){
@@ -144,27 +139,23 @@ function renderOne(m, cls){
   }
   return `<div class="msg ${cls}">${m.text||''}${media}</div>`;
 }
-
 async function openChat(id,name){
  cur=id; curName=name;
  document.getElementById('win').classList.add('on');
  document.getElementById('cn').innerText=name;
  document.getElementById('ca').innerText=name[0];
- document.getElementById('cl').innerText= id==='assistant'? 'Last seen today at 10:35 PM' : 'Last seen just now';
- document.getElementById('co').innerText='Online';
+ document.getElementById('cl').innerText= id==='assistant'? 'Last seen today at 10:35 PM' : (onlineIds.has(id)?'Online now':'Last seen just now');
+ document.getElementById('co').innerText= onlineIds.has(id)?'Online':'Online';
  let ms=document.getElementById('msgs');
  if(id==='assistant'){ ms.innerHTML='<div class="msg bot">Hello Boss! 🔥 I be MayorChatZ! FREE AI don live! Ask me anything!</div>'; return; }
  try{
    let msgs = await fetch(`/api/messages?from=${me.id}&to=${id}`).then(r=>r.json());
    if(msgs.length===0) ms.innerHTML=`<div class="msg bot">You don open chat with ${name}.<br>Send message, photo, video, voice note now! 🚀</div>`;
-   else {
-     msgs.forEach(m=>{ if(m.id) seenMsgs.add(m.id + '|' + m.from + '|' + (m.text||'') + '|' + (m.file||'')); });
-     ms.innerHTML = msgs.map(m=>renderOne(m, m.from===me.id?'user':'bot')).join('');
-   }
+   else { msgs.forEach(m=>{ if(m.id) seenMsgs.add(m.id + '|' + m.from + '|' + (m.text||'') + '|' + (m.file||'')); }); ms.innerHTML = msgs.map(m=>renderOne(m, m.from===me.id?'user':'bot')).join(''); }
  }catch(e){ ms.innerHTML=`<div class="msg bot">Chat with ${name} started.</div>`; }
  ms.scrollTop=99999;
 }
-function closeChat(){document.getElementById('win').classList.remove('on');}
+function closeChat(){document.getElementById('win').classList.remove('on'); loadUsers();}
 function check(){ document.getElementById('sb').innerText=document.getElementById('inp').value.trim()?'➤':'🎤'; }
 function action(){ let t=document.getElementById('inp').value.trim(); if(t) go(); else voice(); }
 async function go(){
@@ -179,42 +170,45 @@ async function go(){
  }
  ms.scrollTop=99999;
 }
-// FIXED PHOTO / VIDEO - Upload to server, not just preview
 async function sendPic(inp){
  if(!inp.files[0])return;
+ if(!cur || cur==='assistant') return alert('Open a person chat first before you send photo/video!');
  let file = inp.files[0];
  let ms=document.getElementById('msgs');
  ms.innerHTML+=`<div class="msg user">⏳ Uploading ${file.type.startsWith('video')?'video':'photo'}... please wait</div>`; ms.scrollTop=99999;
  let fd = new FormData(); fd.append('file', file);
  try{
    let r = await fetch('/api/upload',{method:'POST',body:fd});
-   if(!r.ok) throw new Error('Upload failed');
+   if(!r.ok) throw new Error('Upload failed - file too big? Max 50MB');
    let d = await r.json();
-   // Remove the "Uploading..." temp message
    ms.lastElementChild.remove();
-   socket.emit('send-message',{from:me.id,fromName:me.name,to:cur,file:d.url,fileType:d.type,text:'📷 Photo/Video'});
- }catch(e){ alert('Upload fail Boss - check file size (max 50MB) or try smaller photo/video. Error: '+e.message); ms.lastElementChild.remove(); }
+   let label = file.type.startsWith('video')? '🎬 Video' : '📷 Photo';
+   socket.emit('send-message',{from:me.id,fromName:me.name,to:cur,file:d.url,fileType:d.type,text:label});
+ }catch(e){ alert('Upload fail Boss: '+e.message); ms.lastElementChild.remove(); }
  inp.value='';
 }
 async function voice(){
  if(isRec){ rec.stop(); return; }
- try{ let s=await navigator.mediaDevices.getUserMedia({audio:true}); rec=new MediaRecorder(s); chunks=[]; isRec=true; document.getElementById('sb').innerText='■'; document.getElementById('sb').style.background='red'; document.getElementById('inp').placeholder='● Recording... tap ■ to stop'; rec.ondataavailable=e=>chunks.push(e.data); rec.onstop=async()=>{ let blob=new Blob(chunks,{type:'audio/webm'}); let fd=new FormData(); fd.append('file', blob, 'voice.webm'); try{ let r=await fetch('/api/upload',{method:'POST',body:fd}); let d=await r.json(); socket.emit('send-message',{from:me.id,fromName:me.name,to:cur,file:d.url,fileType:'audio/webm',text:'🎤 Voice note'}); }catch(e){ let u=URL.createObjectURL(blob); let ms=document.getElementById('msgs'); ms.innerHTML+=`<div class="msg user"><audio controls src="${u}" style="width:180px"></audio></div>`; } s.getTracks().forEach(t=>t.stop()); document.getElementById('sb').innerText='🎤'; document.getElementById('sb').style.background='#ff2a8a'; document.getElementById('inp').placeholder='Type a message...'; isRec=false; }; rec.start(); }catch(e){ alert('Allow mic Boss! 🎤'); }
+ try{ let s=await navigator.mediaDevices.getUserMedia({audio:true}); rec=new MediaRecorder(s); chunks=[]; isRec=true; document.getElementById('sb').innerText='■'; document.getElementById('sb').style.background='red'; rec.ondataavailable=e=>chunks.push(e.data); rec.onstop=async()=>{ let blob=new Blob(chunks,{type:'audio/webm'}); let fd=new FormData(); fd.append('file', blob, 'voice.webm'); try{ let r=await fetch('/api/upload',{method:'POST',body:fd}); let d=await r.json(); socket.emit('send-message',{from:me.id,fromName:me.name,to:cur,file:d.url,fileType:'audio/webm',text:'🎤 Voice note'}); }catch(e){ let u=URL.createObjectURL(blob); let ms=document.getElementById('msgs'); ms.innerHTML+=`<div class="msg user"><audio controls src="${u}" style="width:180px"></audio></div>`; } s.getTracks().forEach(t=>t.stop()); document.getElementById('sb').innerText='🎤'; document.getElementById('sb').style.background='#ff2a8a'; isRec=false; }; rec.start(); }catch(e){ alert('Allow mic Boss! 🎤'); }
 }
-// FIXED DOUBLE MESSAGE - Dedup by ID
+socket.on('online-users', (ids)=>{ onlineIds = new Set(ids); loadUsers(); });
+socket.on('users-changed', ()=>loadUsers());
 socket.on('new-message', (m)=>{
  let key = (m.id||'') + '|' + m.from + '|' + (m.text||'') + '|' + (m.file||'');
  if(seenMsgs.has(key)) return;
  seenMsgs.add(key);
+ // Save preview so Chats list go show last message
+ let otherId = m.from===me?.id? m.to : m.from;
+ lastMsgs[otherId] = m.file? (m.fileType&&m.fileType.startsWith('video')?'🎬 Video': m.fileType&&m.fileType.startsWith('audio')?'🎤 Voice':'📷 Photo') : m.text;
  if(m.from===me?.id){
    if(cur===m.to){ let ms=document.getElementById('msgs'); ms.innerHTML+=renderOne(m,'user'); ms.scrollTop=99999; }
-   return;
+   loadUsers(); return;
  }
  if(cur===m.from || cur===m.to){ let ms=document.getElementById('msgs'); ms.innerHTML+=renderOne(m,'bot'); ms.scrollTop=99999; }
- else { loadUsers(); }
+ loadUsers();
 });
 socket.on('new-group', ()=>loadUsers());
 socket.on('new-status', ()=>loadUsers());
-if(me) loadUsers();
 </script>
 </body>
  </html>
