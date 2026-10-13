@@ -3,6 +3,13 @@
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>MayorChatZ</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icon.png">
+<link rel="apple-touch-icon" href="/icon.png">
+<meta name="theme-color" content="#ff2e8a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="MayorChatZ">
 <script src="/socket.io/socket.io.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
@@ -52,7 +59,7 @@ body{background:#0b0a1a;color:#fff;height:100dvh;display:flex;flex-direction:col
  <div class="tab" id="t2" onclick="tab(2)">Groups</div>
 </div>
 <div class="list panel on" id="p0"><div id="chatList"></div></div>
-<div class="panel" id="p1"><div id="statusList"></div><button class="fab" onclick="postStatus()">+</button></div>
+<div class="panel" id="p1"><div id="statusList"></div><input type="file" id="sf" accept="image/*,video/*" hidden onchange="postStatusMedia(this)"><button class="fab" onclick="postStatus()">+</button><button class="fab" style="bottom:90px;background:#00cec9" onclick="document.getElementById('sf').click()">📷</button></div>
 <div class="panel" id="p2"><div id="groupList"></div><button class="fab" onclick="createGroup()">+</button></div>
 <div class="win" id="win">
  <div class="ch">
@@ -75,14 +82,11 @@ let cur=null, curName='', rec, chunks=[], isRec=false;
 let me = localStorage.getItem('mc_me')? JSON.parse(localStorage.getItem('mc_me')) : null;
 let allUsers = [], allGroups = [], allStatus = [], onlineIds = new Set();
 let seenMsgs = new Set();
-let lastMsgs = {}; // for preview: userId -> last text
-
+let lastMsgs = {};
 function logout(){ localStorage.removeItem('mc_me'); location.reload(); }
 function tab(i){ [0,1,2].forEach(n=>{ document.getElementById('t'+n).classList.toggle('active',n===i); document.getElementById('p'+n).classList.toggle('on',n===i); }); }
-
 async function join(){
  let name = document.getElementById('myName').value.trim(); if(!name) return alert('Enter name');
- // Keep old ID if e exist, so server no create duplicate
  let oldId = me? me.id : ('u' + Date.now());
  let r = await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name, id: oldId})});
  me = await r.json(); localStorage.setItem('mc_me', JSON.stringify(me));
@@ -90,10 +94,8 @@ async function join(){
  socket.emit('join', me.id, me.name); loadUsers();
 }
 if(me){ document.getElementById('login').style.display='none'; document.getElementById('meLabel').innerText='Hi, '+me.name;
-  // Re-register with same ID so server recognize you after restart
   fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:me.name, id:me.id})}).then(()=>{ socket.emit('join', me.id, me.name); loadUsers(); });
 }
-
 async function loadUsers(){
  try{
    allUsers = await fetch('/api/users').then(r=>r.json());
@@ -102,7 +104,6 @@ async function loadUsers(){
  }catch(e){}
  let listDiv = document.getElementById('chatList');
  let html = `<div class="item" onclick="openChat('assistant','MayorChatZ Assistant')"><div class="av">M<span class="online-dot"></span></div><div><div class="nm">MayorChatZ Assistant ●</div><div class="lt">FREE AI Online - Tap to chat...</div></div><div class="tm">now</div></div>`;
- // FIX: Filter by BOTH id and name - you no go see yourself again
  let others = allUsers.filter(u=> u.id!==me?.id && u.name!==me?.name);
  if(others.length===0){
    html+=`<div class="empty">No other users yet.<br>Share your link make friends join!<br>When dem register, dem go show here.<br><br>⚠️ If your friend don join but you no see am,<br>make dem click <b>Logout</b> and join again with same name.</div>`;
@@ -124,11 +125,24 @@ function renderGroups(){
 }
 function renderStatus(){
  let s=document.getElementById('statusList');
- if(allStatus.length===0){ s.innerHTML='<div class="empty">No status yet. Click + to post!</div>'; return; }
- s.innerHTML = allStatus.map((st,i)=>`<div class="item" onclick="viewStatus(${i})"><div class="av" style="background:${i==0?'#ff2a8a':'#00cec9'}">${(st.avatar||st.name[0])}</div><div><div class="nm">${st.name}</div><div class="lt">${st.text||st.last}</div></div></div>`).join('');
+ if(allStatus.length===0){ s.innerHTML='<div class="empty">No status yet. Click + for text or 📷 for photo/video!</div>'; return; }
+ s.innerHTML = allStatus.map((st,i)=>`<div class="item" onclick="viewStatus(${i})"><div class="av" style="background:${i==0?'#ff2a8a':'#00cec9'}">${(st.avatar||st.name[0])}</div><div><div class="nm">${st.name}</div><div class="lt">${st.text||st.last}</div>${st.file? (st.fileType&&st.fileType.startsWith('video')? `<video controls src="${st.file}" style="width:180px;border-radius:10px;margin-top:5px"></video>` : `<img src="${st.file}" style="width:180px;border-radius:10px;margin-top:5px">`) : ''}</div></div>`).join('');
 }
 async function createGroup(){ let name=prompt('Group name?'); if(!name)return; let last=prompt('Group description?')||'New group created'; await fetch('/api/groups',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,desc:last,members:1,createdBy:me?.name||'Mayor'})}); loadUsers(); tab(2); }
 async function postStatus(){ let text=prompt('Wetin you wan post for status?'); if(!text)return; await fetch('/api/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:me?.name||'Me',text,last:text})}); loadUsers(); tab(1); alert('Status posted! 🔥 Everyone go see am!'); }
+async function postStatusMedia(inp){
+ if(!inp.files[0]) return;
+ let file = inp.files[0];
+ let fd = new FormData(); fd.append('file', file);
+ try{
+   let r = await fetch('/api/upload',{method:'POST',body:fd});
+   if(!r.ok) throw new Error('Upload failed - file too big? Max 50MB');
+   let d = await r.json();
+   await fetch('/api/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:me?.name||'Me', text: file.type.startsWith('video')?'🎬 Video Status':'📷 Photo Status', file:d.url, fileType:d.type})});
+   loadUsers(); tab(1); alert('Photo/Video Status posted! 🔥');
+ }catch(e){ alert('Upload fail: '+e.message); }
+ inp.value='';
+}
 function viewStatus(i){ alert(allStatus[i].name+':\n\n'+(allStatus[i].text||allStatus[i].last)); }
 function renderOne(m, cls){
   let media = '';
@@ -197,7 +211,6 @@ socket.on('new-message', (m)=>{
  let key = (m.id||'') + '|' + m.from + '|' + (m.text||'') + '|' + (m.file||'');
  if(seenMsgs.has(key)) return;
  seenMsgs.add(key);
- // Save preview so Chats list go show last message
  let otherId = m.from===me?.id? m.to : m.from;
  lastMsgs[otherId] = m.file? (m.fileType&&m.fileType.startsWith('video')?'🎬 Video': m.fileType&&m.fileType.startsWith('audio')?'🎤 Voice':'📷 Photo') : m.text;
  if(m.from===me?.id){
@@ -210,5 +223,6 @@ socket.on('new-message', (m)=>{
 socket.on('new-group', ()=>loadUsers());
 socket.on('new-status', ()=>loadUsers());
 </script>
+<script>if('serviceWorker' in navigator){ navigator.serviceWorker.register('/sw.js').catch(()=>{}); }</script>
 </body>
  </html>
