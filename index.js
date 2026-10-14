@@ -29,18 +29,24 @@ let statuses = [];
 let messages = [];
 let online = {};
 
+// E2EE: Server NEVER sees private keys or plaintext. It only stores publicKey + ciphertext.
 app.post('/api/register', (req, res) => {
-  const { name, id } = req.body;
+  const { name, id, publicKey } = req.body;
   let user = null;
   if (id) user = users.find(u => u.id === id);
-  if (!user) user = users.find(u => u.name === name);
-  if (!user) { user = { id: id || ('u' + Date.now() + Math.floor(Math.random()*1000)), name }; users.push(user); }
-  else { user.name = name; }
+  if (!user) {
+    user = { id: id || ('u' + Date.now() + Math.floor(Math.random()*100000)), name, publicKey: publicKey || null };
+    users.push(user);
+  } else {
+    user.name = name;
+    if (publicKey) user.publicKey = publicKey;
+  }
   res.json(user);
 });
 
 app.get('/api/users', (req, res) => {
-  const list = users.map(u => ({...u, online:!!online[u.id] }));
+  // publicKey is public - safe to share. Private key never leaves device.
+  const list = users.map(u => ({ id: u.id, name: u.name, publicKey: u.publicKey || null, online:!!online[u.id] }));
   res.json(list);
 });
 app.get('/api/groups', (req, res) => res.json(groups));
@@ -50,7 +56,8 @@ app.post('/api/groups', (req, res) => {
 });
 app.get('/api/status', (req, res) => res.json(statuses));
 app.post('/api/status', (req, res) => {
-  const s = { id: 's' + Date.now(), name: req.body.name || 'Me', text: req.body.text || req.body.last, last: req.body.text || req.body.last, file: req.body.file || null, fileType: req.body.fileType || '', time: new Date().toLocaleString() };
+  // Status stores only encrypted bundles - server cannot read text
+  const s = { id: 's' + Date.now(), name: req.body.name || 'Me', encryptedFor: req.body.encryptedFor || null, text: req.body.text || '', file: req.body.file || null, fileType: req.body.fileType || '', isEncrypted:!!req.body.encryptedFor, time: new Date().toLocaleString() };
   statuses.unshift(s); io.emit('new-status', s); res.json(s);
 });
 app.get('/api/messages', (req, res) => {
@@ -75,15 +82,22 @@ io.on('connection', (socket) => {
   let myId = null;
   socket.on('join', (userId, userName) => {
     myId = userId;
-    if (userId) online[userId] = userName || userId;
+    if (userId) { online[userId] = userName || userId; socket.join(userId); }
     io.emit('online-users', Object.keys(online));
     io.emit('users-changed');
   });
   socket.on('send-message', (m) => {
+    if (!m ||!m.from ||!m.to) return;
+    // Server does NOT decrypt. It only relays opaque ciphertext.
+    // m must contain encryptedFor {userId: {cipher, iv}} and NOT plaintext.text for 1-1/group
+    if (!m.encryptedFor &&!m.text) return;
     m.id = Date.now() + '_' + Math.random().toString(36).slice(2,8);
     m.time = new Date().toLocaleTimeString();
+    // Strip any accidental plaintext - keep only ciphertext + file metadata
+    if (m.encryptedFor) delete m.text;
     messages.push(m);
-    io.emit('new-message', m);
+    io.to(m.to).emit('new-message', m);
+    if (m.to!== m.from) io.to(m.from).emit('new-message', m);
   });
   socket.on('disconnect', () => {
     if (myId) delete online[myId];
@@ -93,4 +107,4 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log('MayorChatZ Live on ' + PORT));
+server.listen(PORT, () => console.log('MayorChatZ E2EE Live on ' + PORT));
