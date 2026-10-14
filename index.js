@@ -1,110 +1,141 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const cors = require('cors');
 const multer = require('multer');
+const path = require('path');
 const fs = require('fs');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" } });
+const io = new Server(server, { cors: { origin: '*' } });
 
-app.use(cors());
-app.use(express.json());
-app.use(express.static('public'));
-app.use('/uploads', express.static('uploads'));
-if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, 'public')));
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
-const upload = multer({
-  storage: multer.diskStorage({
-    destination: 'uploads/',
-    filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname.replace(/\s/g,'_'))
-  }),
-  limits: { fileSize: 50 * 1024 * 1024 }
-});
-
-let users = [];
-let groups = [{ id: 'g1', name: 'General', desc: 'General group chat', members: 1 }];
-let statuses = [];
-let messages = [];
-let online = {};
-
-// E2EE: Server NEVER sees private keys or plaintext. It only stores publicKey + ciphertext.
-app.post('/api/register', (req, res) => {
-  const { name, id, publicKey } = req.body;
-  let user = null;
-  if (id) user = users.find(u => u.id === id);
-  if (!user) {
-    user = { id: id || ('u' + Date.now() + Math.floor(Math.random()*100000)), name, publicKey: publicKey || null };
-    users.push(user);
-  } else {
-    user.name = name;
-    if (publicKey) user.publicKey = publicKey;
+// ---------- SAVE SETTINGS SO REDEPLOY NO WIPE AM ----------
+const DATA_FILE = path.join(__dirname, 'data.json');
+let users = [], groups = [], statusList = [], messages = [];
+try {
+  if (fs.existsSync(DATA_FILE)) {
+    let d = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+    users = d.users || [];
+    groups = d.groups || [];
+    statusList = d.statusList || [];
+    messages = d.messages || [];
   }
-  res.json(user);
-});
+} catch (e) {}
+function save() {
+  try { fs.writeFileSync(DATA_FILE, JSON.stringify({ users, groups, statusList, messages })); } catch (e) {}
+}
+if (!groups.find(g => g.id === 'general')) {
+  groups.push({ id: 'general', name: 'General Chat', desc: 'Everyone dey here', members: 0, createdBy: 'MayorChatZ' });
+  save();
+}
 
-app.get('/api/users', (req, res) => {
-  // publicKey is public - safe to share. Private key never leaves device.
-  const list = users.map(u => ({ id: u.id, name: u.name, publicKey: u.publicKey || null, online:!!online[u.id] }));
-  res.json(list);
+// ---------- UPLOAD: Photos + Videos up to 50MB ----------
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    let dir = path.join(__dirname, 'public/uploads');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + '-' + Math.round(Math.random() * 1e9) + path.extname(file.originalname));
+  }
 });
-app.get('/api/groups', (req, res) => res.json(groups));
-app.post('/api/groups', (req, res) => {
-  const g = { id: 'g' + Date.now(), name: req.body.name, desc: req.body.desc || 'Group chat', members: 1, createdBy: req.body.createdBy };
-  groups.unshift(g); io.emit('new-group', g); res.json(g);
-});
-app.get('/api/status', (req, res) => res.json(statuses));
-app.post('/api/status', (req, res) => {
-  // Status stores only encrypted bundles - server cannot read text
-  const s = { id: 's' + Date.now(), name: req.body.name || 'Me', encryptedFor: req.body.encryptedFor || null, text: req.body.text || '', file: req.body.file || null, fileType: req.body.fileType || '', isEncrypted:!!req.body.encryptedFor, time: new Date().toLocaleString() };
-  statuses.unshift(s); io.emit('new-status', s); res.json(s);
-});
-app.get('/api/messages', (req, res) => {
-  const { from, to } = req.query;
-  res.json(messages.filter(m => (m.from === from && m.to === to) || (m.from === to && m.to === from)));
-});
+const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 } });
 app.post('/api/upload', upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
-  res.json({ url: '/uploads/' + req.file.filename, type: req.file.mimetype, name: req.file.originalname });
-});
-app.post('/chat', (req, res) => {
-  const msg = (req.body.message || '').toLowerCase();
-  let reply = "I hear you Boss! 🔥 Ask me anything!";
-  if (msg.includes('hello') || msg.includes('hi')) reply = "Hello Boss! 🔥 Welcome to MayorChatZ! How I fit help you today?";
-  else if (msg.includes('who are you')) reply = "I be MayorChatZ Assistant - your FREE AI inside MayorChatZ! 🚀";
-  else if (msg.includes('thank')) reply = "You are welcome Boss! 🙏 Anytime!";
-  else reply = "Nice one! '" + req.body.message + "' - Tell me more, I dey listen. 🔥";
-  res.json({ reply });
+  res.json({ url: '/uploads/' + req.file.filename, fileType: req.file.mimetype });
 });
 
+// ---------- API ----------
+app.post('/api/register', (req, res) => {
+  let { name, id, publicKey } = req.body;
+  if (!name ||!id) return res.status(400).json({ error: 'Missing' });
+  let u = users.find(x => x.id === id);
+  if (u) { u.name = name; u.publicKey = publicKey || u.publicKey; u.online = true; }
+  else { u = { id, name, publicKey: publicKey || null, online: true }; users.push(u); }
+  save(); io.emit('users-changed');
+  res.json(u);
+});
+app.get('/api/users', (req, res) => res.json(users));
+app.post('/api/groups', (req, res) => {
+  let g = { id: 'g' + Date.now(), name: req.body.name, desc: req.body.desc || '', members: 1, createdBy: req.body.createdBy || '' };
+  groups.push(g); save(); io.emit('new-group', g); res.json(g);
+});
+app.get('/api/groups', (req, res) => res.json(groups));
+app.post('/api/status', (req, res) => {
+  let s = { id: 's' + Date.now(), name: req.body.name || '', text: req.body.text || '', file: req.body.file || null, fileType: req.body.fileType || '', createdAt: Date.now() };
+  statusList.unshift(s); save(); io.emit('new-status', s); res.json(s);
+});
+app.get('/api/status', (req, res) => res.json(statusList));
+app.get('/api/messages', (req, res) => {
+  let { from, to } = req.query;
+  let m = messages.filter(x => (x.from === from && x.to === to) || (x.from === to && x.to === from));
+  res.json(m);
+});
+
+// ---------- SMART ASSISTANT ----------
+function smartReply(q) {
+  let t = (q || '').toLowerCase().trim();
+  let math = t.replace(/x/g, '*').match(/^[\d\s\+\-\*\/\(\)\.]+$/);
+  if (math && /[0-9]/.test(t) && /[\+\-\*\/]/.test(t)) {
+    try { let v = Function('return ' + t)(); if (typeof v === 'number' && isFinite(v)) return 'The answer is ' + v + '. ✅'; } catch (e) {}
+  }
+  if (t.includes('photosynthesis')) return 'Photosynthesis na how green plants use sunlight, water and carbon dioxide to make food (glucose) and release oxygen.\n\nEquation: 6CO2 + 6H2O + sunlight → C6H12O6 + 6O2\n\nIt happens inside chloroplasts, with chlorophyll. Na why plants green and why we get oxygen to breathe. 🌿';
+  if (t.includes('gravity')) return 'Gravity na force wey dey pull objects toward each other. Earth gravity dey pull everything toward centre, na why things fall down. Newton discover am, Einstein explain am as bending of space-time.';
+  if (t.includes('hello') || t === 'hi' || t.includes('how are you')) return 'Hello Boss! 👋 I dey fine, I be MayorChatZ Assistant. Ask me anything - science, maths, English, coding, or gist. Wetin you wan learn today?';
+  if (t.includes('who are you') || t.includes('your name')) return 'I be MayorChatZ Assistant, your FREE AI inside MayorChatZ. I fit answer questions, explain topics, solve maths, and help you with homework.';
+  if (t.includes('nigeria')) return 'Nigeria na the most populous country for Africa, with over 220 million people. Capital na Abuja, largest city na Lagos. E get 36 states + FCT, and over 500 languages.';
+  if (t.includes('water') && t.includes('boil')) return 'Water dey boil at 100°C (212°F) at normal sea level pressure. For higher altitude, e dey boil at lower temperature because air pressure low.';
+  if (t.includes('pythagoras')) return 'Pythagoras Theorem: For right triangle, a² + b² = c², where c na hypotenuse (longest side). Example: If a=3, b=4, then c=5 because 9+16=25.';
+  if (t.includes('dna')) return 'DNA (Deoxyribonucleic Acid) na molecule wey carry genetic instructions for living things. E get double helix shape, with 4 bases: A, T, C, G. A pair with T, C pair with G.';
+  if (t.includes('computer') || t.includes('what is ai')) return 'AI (Artificial Intelligence) na computer systems wey fit do tasks wey normally need human intelligence - like understand language, recognize images, and make decisions. Examples: ChatGPT, Google Translate, face unlock.';
+  if (t.includes('thank')) return 'You are welcome Boss! 🙏 Anytime. Ask me another one.';
+  if (t.includes('joke')) return 'Why did the scarecrow win an award? Because he was outstanding in his field! 😂';
+  if (t.includes('capital of france')) return 'Capital of France na Paris. 🇫🇷';
+  if (t.includes('capital of england') || t.includes('capital of uk')) return 'Capital of England / UK na London. 🇬🇧';
+  if (t.includes('capital of ghana')) return 'Capital of Ghana na Accra. 🇬🇭';
+  if (t.includes('largest planet')) return 'Largest planet for our solar system na Jupiter. E big pass all other planets combined.';
+  if (t.includes('fastest animal')) return 'Fastest land animal na cheetah - e fit run up to 110 km/h. Fastest bird na peregrine falcon.';
+  return 'Good question! "' + q + '"\n\nHere is how to think about am:\n1. Break am into small parts\n2. Define the key terms\n3. Look for example\n\nTell me more detail - e.g. "Explain ' + q + ' for SS2" or "Give example of ' + q + '" - make I give you full explanation with examples. 📚';
+}
+app.post('/chat', (req, res) => {
+  let m = req.body.message || '';
+  res.json({ reply: smartReply(m) });
+});
+
+// ---------- SOCKET ----------
 io.on('connection', (socket) => {
-  let myId = null;
-  socket.on('join', (userId, userName) => {
-    myId = userId;
-    if (userId) { online[userId] = userName || userId; socket.join(userId); }
-    io.emit('online-users', Object.keys(online));
+  socket.on('join', (id, name) => {
+    socket.userId = id;
+    let u = users.find(x => x.id === id);
+    if (u) { u.online = true; u.name = name || u.name; save(); }
+    io.emit('online-users', users.filter(x => x.online).map(x => x.id));
     io.emit('users-changed');
   });
-  socket.on('send-message', (m) => {
-    if (!m ||!m.from ||!m.to) return;
-    // Server does NOT decrypt. It only relays opaque ciphertext.
-    // m must contain encryptedFor {userId: {cipher, iv}} and NOT plaintext.text for 1-1/group
-    if (!m.encryptedFor &&!m.text) return;
-    m.id = Date.now() + '_' + Math.random().toString(36).slice(2,8);
-    m.time = new Date().toLocaleTimeString();
-    // Strip any accidental plaintext - keep only ciphertext + file metadata
-    if (m.encryptedFor) delete m.text;
-    messages.push(m);
-    io.to(m.to).emit('new-message', m);
-    if (m.to!== m.from) io.to(m.from).emit('new-message', m);
+  socket.on('send-message', (data) => {
+    let msg = {
+      id: 'm' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+      from: data.from, fromName: data.fromName || '', to: data.to,
+      text: data.text || '', file: data.file || null, fileType: data.fileType || '',
+      createdAt: Date.now()
+    };
+    messages.push(msg);
+    if (messages.length > 2000) messages = messages.slice(-2000);
+    save();
+    io.emit('new-message', msg);
   });
   socket.on('disconnect', () => {
-    if (myId) delete online[myId];
-    io.emit('online-users', Object.keys(online));
+    let u = users.find(x => x.id === socket.userId);
+    if (u) { u.online = false; save(); }
+    io.emit('online-users', users.filter(x => x.online).map(x => x.id));
     io.emit('users-changed');
   });
 });
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log('MayorChatZ E2EE Live on ' + PORT));
+server.listen(PORT, () => console.log('MayorChatZ live on ' + PORT));
