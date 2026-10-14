@@ -1,192 +1,210 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MayorChatZ</title>
-<link rel="manifest" href="/manifest.json">
-<link rel="icon" href="/icon.png">
-<meta name="theme-color" content="#ff2e8a">
-<script>
-function join(){
-  try{
-    var input=document.getElementById('myName');
-    var name=input?input.value.trim():'';
-    if(!name){alert('Enter your name first');return;}
-    var btn=document.getElementById('joinBtn');
-    if(btn){btn.textContent='Joining...';btn.disabled=true;}
-    var oldId=null;
-    try{var s=localStorage.getItem('mc_me'); if(s) oldId=JSON.parse(s).id;}catch(e){}
-    if(!oldId) oldId='u'+Date.now()+'_'+Math.floor(Math.random()*100000);
-    fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,id:oldId,publicKey:null})})
-  .then(function(r){if(!r.ok) throw new Error('Server '+r.status); return r.json();})
-  .then(function(me){
-      try{localStorage.setItem('mc_me',JSON.stringify(me));}catch(e){}
-      try{sessionStorage.setItem('mc_me',JSON.stringify(me));}catch(e){}
-      window.me=me;
-      document.getElementById('login').style.display='none';
-      document.getElementById('meLabel').textContent='Hi, '+me.name;
-      if(typeof doJoin==='function') doJoin();
-      if(typeof loadUsers==='function') loadUsers();
-      if(btn){btn.textContent='Join Chat';btn.disabled=false;}
-    })
-  .catch(function(e){alert('Login failed: '+e.message); if(btn){btn.textContent='Join Chat';btn.disabled=false;}});
-  }catch(e){alert('Join error: '+e.message);}
-}
-function hardReset(){try{localStorage.removeItem('mc_me');sessionStorage.removeItem('mc_me');}catch(e){} location.reload();}
-</script>
 <script src="/socket.io/socket.io.js"></script>
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:Arial,sans-serif}
-body{background:#0b0a1a;color:#fff;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
-.h{background:#1a1033;padding:12px 15px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #2a2350;font-weight:bold}
-.tabs{display:flex;background:#1a1033}
-.tab{flex:1;padding:13px;text-align:center;color:#888;cursor:pointer;border-bottom:3px solid transparent;font-size:14px}
-.tab.active{color:#ff2a8a;border-bottom-color:#ff2a8a}
-.fab{position:fixed;bottom:20px;right:20px;width:56px;height:56px;border-radius:50%;background:#ff2a8a;color:#fff;border:none;font-size:28px;cursor:pointer;z-index:5}
-.list{flex:1;overflow:auto}
-.item{display:flex;gap:12px;padding:13px;border-bottom:1px solid #15122e;cursor:pointer;align-items:center}
-.av{width:46px;height:46px;border-radius:50%;background:#ff2a8a;display:flex;align-items:center;justify-content:center;font-weight:bold;flex-shrink:0}
-.nm{font-weight:bold;font-size:15px}
-.lt{color:#999;font-size:13px;margin-top:3px}
-.tm{font-size:11px;color:#888;margin-left:auto}
-.panel{display:none;flex:1;overflow:auto}
-.panel.on{display:block}
-.win{display:none;flex-direction:column;height:100dvh;position:fixed;inset:0;background:#0b0a1a;z-index:99}
-.win.on{display:flex}
-.ch{background:#1a1033;padding:10px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #2a2350}
-.msgs{flex:1;overflow:auto;padding:15px;display:flex;flex-direction:column;gap:10px;background:#0f0d24}
-.msg{padding:10px 14px;border-radius:18px;max-width:85%;font-size:14px;line-height:1.4;word-break:break-word;white-space:pre-wrap}
-.msg video,.msg img{max-width:100%;border-radius:10px;margin-top:5px;display:block}
-.user{background:#ff2a8a;align-self:flex-end;border-bottom-right-radius:4px}
-.bot{background:#2a2350;align-self:flex-start;border-bottom-left-radius:4px}
-.bar{display:flex;align-items:center;gap:7px;padding:8px 8px 12px;background:#1a1033}
-.ic{width:40px;height:40px;border-radius:50%;background:#2a2350;border:none;color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer}
-.wrap{flex:1;background:#2a2350;border-radius:24px;display:flex;align-items:center;padding:0 14px}
-.wrap input{flex:1;background:transparent;border:none;color:#fff;outline:none;padding:12px 0;font-size:15px}
-.send{width:46px;height:46px;border-radius:50%;background:#ff2a8a;border:none;color:#fff;font-size:20px;cursor:pointer;flex-shrink:0}
-.empty{text-align:center;padding:40px 20px;color:#666}
-#login{position:fixed;inset:0;background:#0b0a1a;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:15px;padding:20px;text-align:center}
-#login input{padding:13px;width:100%;max-width:300px;border-radius:10px;border:1px solid #333;background:#1a1033;color:#fff;outline:none}
-#login button{padding:13px 30px;border-radius:10px;border:none;background:#ff2a8a;color:#fff;font-weight:bold;cursor:pointer}
+*{box-sizing:border-box;margin:0;padding:0;font-family:Arial,sans-serif}
+body{background:#0b141a;color:#fff;height:100vh;overflow:hidden}
+#login{position:fixed;inset:0;background:#0b141a;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:15px;z-index:99;padding:20px;text-align:center}
+#login h1{font-size:32px;color:#25d366}
+#login input{padding:13px;width:280px;max-width:90%;border-radius:10px;border:none;outline:none;font-size:16px}
+#login button{padding:13px 30px;background:#25d366;border:none;border-radius:10px;color:#fff;font-size:17px;font-weight:bold;cursor:pointer}
+#app{display:none;height:100vh}
+header{background:#202c33;padding:12px 15px;display:flex;justify-content:space-between;align-items:center}
+header b{color:#25d366;font-size:20px}
+header span{font-size:13px;color:#aaa}
+.tabs{display:flex;background:#202c33;border-top:1px solid #333}
+.tabs button{flex:1;padding:12px;border:none;background:transparent;color:#aaa;cursor:pointer;font-size:15px}
+.tabs button.active{color:#25d366;border-bottom:3px solid #25d366}
+.main{height:calc(100vh - 100px);overflow-y:auto;padding:10px;padding-bottom:90px}
+.card{background:#202c33;padding:12px;border-radius:12px;margin-bottom:10px;display:flex;align-items:center;gap:12px;cursor:pointer}
+.avatar{width:48px;height:48px;border-radius:50%;background:#25d366;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:bold;flex-shrink:0;overflow:hidden}
+.avatar img{width:100%;height:100%;object-fit:cover}
+.card small{color:#aaa;display:block}
+.dot{width:10px;height:10px;border-radius:50%;background:#555;display:inline-block}
+.dot.on{background:#25d366}
+#chatView{display:none;height:100vh;flex-direction:column;background:#0b141a}
+#chatHead{background:#202c33;padding:12px;display:flex;align-items:center;gap:10px}
+#chatHead button{background:none;border:none;color:#fff;font-size:22px;cursor:pointer}
+#msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;background-image:url('https://i.imgur.com/8x8j8bP.png')}
+.msg{max-width:80%;padding:9px 12px;border-radius:12px;font-size:15px;white-space:pre-wrap;word-break:break-word}
+.msg.me{background:#005c4b;align-self:flex-end}
+.msg.other{background:#202c33;align-self:flex-start}
+.msg img,.msg video{max-width:100%;border-radius:10px;margin-top:5px}
+.msg small{font-size:11px;color:#aaa;display:block;margin-top:3px}
+#inputBar{display:flex;gap:8px;padding:10px;background:#202c33;align-items:center}
+#inputBar input[type=text]{flex:1;padding:12px;border-radius:20px;border:none;outline:none;background:#2a3942;color:#fff}
+#inputBar button{padding:11px 16px;border:none;border-radius:50%;background:#25d366;color:#fff;font-size:18px;cursor:pointer}
+#fileBtn{background:#2a3942!important}
+input[type=file]{display:none}
+.btn{width:100%;padding:12px;background:#25d366;border:none;border-radius:10px;color:#fff;font-weight:bold;cursor:pointer;margin-top:8px}
+input[type=text].full{width:100%;padding:12px;border-radius:10px;border:none;outline:none;background:#2a3942;color:#fff;margin-top:8px}
+.aiCard{border:1px solid #25d366}
 </style>
 </head>
 <body>
-<div id="login"><h2>MayorChatZ 🔥</h2><p style="color:#999">Enter your name to join</p><input id="myName" placeholder="Your name e.g. Mayor"><button id="joinBtn" onclick="join()">Join Chat 🚀</button><button onclick="hardReset()" style="background:transparent!important;color:#888!important;font-size:12px;padding:5px">Having trouble? Tap here to clear & retry</button></div>
-<div class="h"><span>MayorChatZ</span><span id="meLabel"></span><button onclick="try{localStorage.removeItem('mc_me');sessionStorage.removeItem('mc_me');location.reload();}catch(e){}" style="background:#2a2350;color:#fff;border:none;padding:6px 10px;border-radius:8px;font-size:12px">Logout</button></div>
-<div class="tabs"><div class="tab active" id="t0" onclick="tab(0)">Chats</div><div class="tab" id="t1" onclick="tab(1)">Status</div><div class="tab" id="t2" onclick="tab(2)">Groups</div></div>
-<div class="list panel on" id="p0"><div id="chatList"><div class="empty">Loading chats...</div></div></div>
-<div class="panel" id="p1"><div id="statusList"></div><input type="file" id="sf2" accept="image/*,video/*" hidden onchange="postStatusMedia(this)"><button class="fab" onclick="postStatus()">+</button><button class="fab" onclick="document.getElementById('sf2').click()" style="bottom:90px;background:#00cec9">📷</button></div>
-<div class="panel" id="p2"><div id="groupList"></div><button class="fab" onclick="createGroup()">+</button></div>
-<div class="win" id="win">
- <div class="ch"><div style="font-size:22px;cursor:pointer" onclick="closeChat()">←</div><div class="av" id="ca">M</div><div style="flex:1"><div id="cn" style="font-weight:bold">MayorChatZ Assistant</div><div style="font-size:11px;color:#00ff88">Online</div></div></div>
- <div class="msgs" id="msgs"></div>
- <div class="bar"><button class="ic" onclick="document.getElementById('f').click()">+</button><input type="file" id="f" accept="image/*,video/*" hidden onchange="sendPic(this)"><button class="ic" onclick="document.getElementById('f').click()">📷</button><div class="wrap"><input id="inp" placeholder="Type a message..." onkeydown="if(event.key==='Enter')go()"></div><button class="send" id="sb" onclick="go()">➤</button></div>
+
+<div id="login">
+<h1>💬 MayorChatZ</h1>
+<p>Chat, Groups, Status & Free AI</p>
+<input id="nameInput" placeholder="Enter your name e.g. Beloved">
+<button onclick="login()">Enter Chat →</button>
+<p style="font-size:12px;color:#888">Your name go show to others. No password needed.</p>
 </div>
+
+<div id="app">
+<header><div><b>MayorChatZ</b><br><span id="myNameShow"></span></div><span id="onlineCount">● Online</span></header>
+<div class="tabs">
+<button id="tabChats" class="active" onclick="showTab('chats')">Chats</button>
+<button id="tabGroups" onclick="showTab('groups')">Groups</button>
+<button id="tabStatus" onclick="showTab('status')">Status</button>
+</div>
+<div class="main" id="main"></div>
+</div>
+
+<div id="chatView">
+<div id="chatHead"><button onclick="closeChat()">←</button><div class="avatar" id="chatAvatar">?</div><div><b id="chatName"></b><br><span id="chatStatus" style="font-size:12px;color:#25d366">Online</span></div></div>
+<div id="msgs"></div>
+<div id="inputBar">
+<label id="fileBtn" style="padding:11px;border-radius:50%;background:#2a3942;cursor:pointer">📎<input type="file" id="fileInput" accept="image/*,video/*,.pdf,.doc,.docx,.mp3,.mp4"></label>
+<input type="text" id="msgInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendMsg()">
+<button onclick="sendMsg()">➤</button>
+</div>
+</div>
+
 <script>
-var socket=null; try{socket=io();}catch(e){socket={on:function(){},emit:function(){}};}
-var cur=null, curName=''; var me=null;
-try{me=localStorage.getItem('mc_me')?JSON.parse(localStorage.getItem('mc_me')):null;}catch(e){me=null;}
-if(!me){try{me=sessionStorage.getItem('mc_me')?JSON.parse(sessionStorage.getItem('mc_me')):null;}catch(e){me=null;}}
-var allUsers=[], allGroups=[], allStatus=[];
-function tab(i){document.getElementById('t0').className='tab'+(i===0?' active':'');document.getElementById('t1').className='tab'+(i===1?' active':'');document.getElementById('t2').className='tab'+(i===2?' active':'');document.getElementById('p0').className='list panel'+(i===0?' on':'');document.getElementById('p1').className='panel'+(i===1?' on':'');document.getElementById('p2').className='panel'+(i===2?' on':'');}
-function doJoin(){if(me&&me.id&&socket.emit) socket.emit('join',me.id,me.name);}
-if(socket.on) socket.on('connect',doJoin);
-if(me){document.getElementById('login').style.display='none';document.getElementById('meLabel').textContent='Hi, '+me.name;doJoin();loadUsers();}
-function esc(s){return String(s||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-function mediaHtml(m){
-  if(!m.file) return '';
-  if(m.fileType && m.fileType.indexOf('video')===0) return '<video controls playsinline src="'+m.file+'" style="max-width:100%;border-radius:10px;margin-top:5px"></video>';
-  if(m.fileType && m.fileType.indexOf('audio')===0) return '<audio controls src="'+m.file+'"></audio>';
-  return '<img src="'+m.file+'" style="max-width:100%;border-radius:10px;margin-top:5px">';
+let myId=localStorage.getItem('mz_id')||('u'+Date.now()+Math.random().toString(36).slice(2,6));
+localStorage.setItem('mz_id',myId);
+let myName=localStorage.getItem('mz_name')||'';
+let socket=io();
+let currentChat=null, currentChatName='', allUsers=[], allGroups=[], currentMessages=[];
+let myPublicKey='key_'+myId;
+
+async function login(){
+  let n=document.getElementById('nameInput').value.trim();
+  if(!n) return alert('Enter your name');
+  myName=n; localStorage.setItem('mz_name',n);
+  let r=await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:n,id:myId,publicKey:myPublicKey})});
+  let u=await r.json(); myId=u.id; localStorage.setItem('mz_id',myId);
+  document.getElementById('login').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('myNameShow').textContent='Hi, '+myName;
+  socket.emit('join',myId,myName);
+  showTab('chats');
 }
-function loadUsers(){
-  fetch('/api/users').then(function(r){return r.json();}).then(function(u){allUsers=u||[];return fetch('/api/groups').then(function(r){return r.json();});}).then(function(g){allGroups=g||[];return fetch('/api/status').then(function(r){return r.json();});}).then(function(s){allStatus=s||[];renderAll();}).catch(function(){renderAll();});
+if(myName){ document.getElementById('nameInput').value=myName; }
+
+function showTab(t){
+  document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab'+t.charAt(0).toUpperCase()+t.slice(1)).classList.add('active');
+  if(t==='chats') renderChats();
+  if(t==='groups') renderGroups();
+  if(t==='status') renderStatus();
 }
-function renderAll(){
-  var html='<div class="item" onclick="openChat(\'assistant\',\'MayorChatZ Assistant\')"><div class="av">M</div><div><div class="nm">MayorChatZ Assistant</div><div class="lt">FREE AI Online - Tap to chat...</div></div><div class="tm">now</div></div>';
-  var others=[]; for(var i=0;i<allUsers.length;i++){if(!me||allUsers[i].id!==me.id) others.push(allUsers[i]);}
-  if(others.length===0){html+='<div class="empty">No other users yet.<br>Share your link make friends join!</div>';}
-  else{for(var j=0;j<others.length;j++){var u=others[j];html+='<div class="item" onclick="openChat(\''+u.id+'\',\''+esc(u.name).replace(/'/g,'')+'\')"><div class="av">'+esc((u.name||'M')[0]).toUpperCase()+'</div><div><div class="nm">'+esc(u.name)+'</div><div class="lt">Tap to chat</div></div><div class="tm">online</div></div>';}}
-  document.getElementById('chatList').innerHTML=html;
-  var gHtml=''; if(allGroups.length===0){gHtml='<div class="empty">No groups yet. Click + to create group!</div>';} else{for(var k=0;k<allGroups.length;k++){var gr=allGroups[k];gHtml+='<div class="item" onclick="openChat(\''+gr.id+'\',\''+esc(gr.name).replace(/'/g,'')+'\')"><div class="av">G</div><div><div class="nm">'+esc(gr.name)+'</div><div class="lt">'+esc(gr.desc||'Group chat')+'</div></div></div>';}}
-  document.getElementById('groupList').innerHTML=gHtml;
-  var sHtml=''; if(allStatus.length===0){sHtml='<div class="empty">No status yet. Click + to post!</div>';} else{for(var s=0;s<allStatus.length;s++){var st=allStatus[s];sHtml+='<div class="item"><div class="av">'+esc((st.name||'M')[0])+'</div><div><div class="nm">'+esc(st.name)+'</div><div class="lt">'+esc(st.text||'')+mediaHtml(st)+'</div></div></div>';}}
-  document.getElementById('statusList').innerHTML=sHtml;
+
+async function renderChats(){
+  let r=await fetch('/api/users'); allUsers=await r.json();
+  let html=`<div class="card aiCard" onclick="openAI()"><div class="avatar">🤖</div><div><b>MayorChatZ Assistant</b><small>Free AI - Ask anything, Maths, Science...</small></div><span class="dot on"></span></div>`;
+  // HIDE OWN NAME - filter out myId
+  html+=allUsers.filter(u=>u.id!==myId).map(u=>`
+    <div class="card" onclick="openChat('${u.id}','${u.name.replace(/'/g,'')}')">
+      <div class="avatar">${u.name.charAt(0).toUpperCase()}</div>
+      <div style="flex:1"><b>${u.name}</b><small>${u.online?'Online':'Offline'} • Tap to chat</small></div>
+      <span class="dot ${u.online?'on':''}"></span>
+    </div>`).join('');
+  if(allUsers.filter(u=>u.id!==myId).length===0) html+='<p style="text-align:center;color:#aaa;margin-top:20px">No other users yet.<br>Share the link make others join!</p>';
+  document.getElementById('main').innerHTML=html;
 }
+async function renderGroups(){
+  let r=await fetch('/api/groups'); allGroups=await r.json();
+  let html=`<input class="full" id="gName" placeholder="New group name"><input class="full" id="gDesc" placeholder="Group description (optional)"><button class="btn" onclick="createGroup()">+ Create Group</button><br><br>`;
+  html+=allGroups.map(g=>`<div class="card" onclick="openChat('${g.id}','${g.name.replace(/'/g,'')}')"><div class="avatar">👥</div><div style="flex:1"><b>${g.name}</b><small>${g.desc||''}</small></div></div>`).join('');
+  document.getElementById('main').innerHTML=html;
+}
+async function createGroup(){
+  let name=document.getElementById('gName').value.trim(); if(!name) return alert('Enter group name');
+  await fetch('/api/groups',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,desc:document.getElementById('gDesc').value,createdBy:myName})});
+  renderGroups();
+}
+async function renderStatus(){
+  let r=await fetch('/api/status'); let list=await r.json();
+  let html=`<input class="full" id="sText" placeholder="Write status..."><button class="btn" onclick="postStatus()">Post Status</button><br><br>`;
+  html+=list.map(s=>{
+    let media='';
+    if(s.file){ if(s.fileType&&s.fileType.startsWith('image')) media=`<img src="${s.file}" style="width:100%;border-radius:10px;margin-top:8px">`; else if(s.fileType&&s.fileType.startsWith('video')) media=`<video src="${s.file}" controls style="width:100%;border-radius:10px;margin-top:8px"></video>`; }
+    return `<div class="card" style="display:block"><b>${s.name}</b><small>${new Date(s.createdAt).toLocaleString()}</small><p style="margin-top:6px">${s.text||''}</p>${media}</div>`;
+  }).join('');
+  if(list.length===0) html+='<p style="text-align:center;color:#aaa">No status yet. Post one!</p>';
+  document.getElementById('main').innerHTML=html;
+}
+async function postStatus(){
+  let text=document.getElementById('sText').value.trim();
+  await fetch('/api/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:myName,text})});
+  renderStatus();
+}
+function openAI(){ openChat('AI','MayorChatZ Assistant'); }
 function openChat(id,name){
-  cur=id; curName=name;
-  document.getElementById('win').className='win on';
-  document.getElementById('cn').textContent=name;
-  document.getElementById('ca').textContent=name[0]||'M';
-  var ms=document.getElementById('msgs');
-  if(id==='assistant'){ms.innerHTML='<div class="msg bot">Hello Boss! I be MayorChatZ! FREE AI don live! Ask me anything!</div>';return;}
-  var isGroup=false; for(var i=0;i<allGroups.length;i++){if(allGroups[i].id===id) isGroup=true;}
-  if(isGroup){ms.innerHTML='<div class="msg bot">Group chat with '+esc(name)+'.</div>';return;}
-  fetch('/api/messages?from='+me.id+'&to='+id).then(function(r){return r.json();}).then(function(msgs){
-    if(!msgs||msgs.length===0){ms.innerHTML='<div class="msg bot">You don open chat with '+esc(name)+'. Send message now!</div>';return;}
-    var h=''; for(var i=0;i<msgs.length;i++){var m=msgs[i]; h+='<div class="msg '+(m.from===me.id?'user':'bot')+'">'+esc(m.text||'')+mediaHtml(m)+'</div>';}
-    ms.innerHTML=h;
-  }).catch(function(){ms.innerHTML='<div class="msg bot">Chat with '+esc(name)+' started.</div>';});
-  ms.scrollTop=99999;
+  currentChat=id; currentChatName=name;
+  document.getElementById('app').style.display='none';
+  document.getElementById('chatView').style.display='flex';
+  document.getElementById('chatName').textContent=name;
+  document.getElementById('chatAvatar').textContent=name.charAt(0).toUpperCase();
+  loadMessages();
 }
-function closeChat(){document.getElementById('win').className='win'; loadUsers();}
-function go(){
-  var inp=document.getElementById('inp'); var t=inp.value.trim(); if(!t) return;
-  var ms=document.getElementById('msgs');
-  if(cur==='assistant'){
-    ms.innerHTML+='<div class="msg user">'+esc(t)+'</div>'; inp.value=''; ms.scrollTop=99999;
-    fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:t})}).then(function(r){return r.json();}).then(function(d){ms.innerHTML+='<div class="msg bot">'+esc(d.reply||'No reply')+'</div>'; ms.scrollTop=99999;}).catch(function(){ms.innerHTML+='<div class="msg bot">Network slow Boss, try again</div>';});
-  } else {
-    socket.emit('send-message',{from:me.id,fromName:me.name,to:cur,text:t,fileType:'text'});
-    inp.value='';
+function closeChat(){ document.getElementById('chatView').style.display='none'; document.getElementById('app').style.display='block'; currentChat=null; showTab('chats'); }
+async function loadMessages(){
+  if(!currentChat) return;
+  if(currentChat==='AI'){
+    document.getElementById('msgs').innerHTML=`<div class="msg other">Hello Boss! 👋 I be <b>MayorChatZ Assistant</b>.<br><br>Ask me anything:<br>• What is photosynthesis?<br>• 45 + 67 =?<br>• Who is Wole Soyinka?<br><br>Type your question below.</div>`;
+    return;
   }
-  ms.scrollTop=99999;
+  let r=await fetch(`/api/messages?from=${myId}&to=${currentChat}`); currentMessages=await r.json();
+  renderMsgs();
 }
-function sendPic(inp){
-  if(!inp.files[0]) return;
-  if(!cur||cur==='assistant'){alert('Open a person chat first!'); inp.value=''; return;}
-  var file=inp.files[0]; var fd=new FormData(); fd.append('file',file);
-  var ms=document.getElementById('msgs');
-  var localUrl=URL.createObjectURL(file);
-  var media=file.type.indexOf('video')===0?'<video controls playsinline src="'+localUrl+'" style="max-width:100%;border-radius:10px"></video>':file.type.indexOf('audio')===0?'<audio controls src="'+localUrl+'"></audio>':'<img src="'+localUrl+'" style="max-width:100%;border-radius:10px">';
-  ms.innerHTML+='<div class="msg user">'+media+'</div>'; ms.scrollTop=99999;
-  fetch('/api/upload',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
-    socket.emit('send-message',{from:me.id,fromName:me.name,to:cur,text:file.type.indexOf('video')===0?'🎬 Video':'📷 Photo',file:d.url,fileType:file.type});
-  }).catch(function(){alert('Upload failed - file too big? Try under 50MB');});
+function renderMsgs(){
+  let box=document.getElementById('msgs');
+  box.innerHTML=currentMessages.map(m=>{
+    let media='';
+    if(m.file){ if(m.fileType&&m.fileType.startsWith('image')) media=`<img src="${m.file}">`; else if(m.fileType&&m.fileType.startsWith('video')) media=`<video src="${m.file}" controls></video>`; else media=`<a href="${m.file}" target="_blank" style="color:#25d366">📎 Download File</a>`; }
+    return `<div class="msg ${m.from===myId?'me':'other'}"><b>${m.from===myId?'You':(m.fromName||'')}</b><br>${m.text||''}${media}<small>${new Date(m.createdAt).toLocaleTimeString()}</small></div>`;
+  }).join('');
+  box.scrollTop=box.scrollHeight;
+}
+async function sendMsg(){
+  let inp=document.getElementById('msgInput'); let text=inp.value.trim();
+  let fileInput=document.getElementById('fileInput');
+  let fileUrl=null, fileType=null;
+  if(fileInput.files[0]){
+    let fd=new FormData(); fd.append('file',fileInput.files[0]);
+    let r=await fetch('/api/upload',{method:'POST',body:fd}); let d=await r.json(); fileUrl=d.url; fileType=d.fileType; fileInput.value='';
+  }
+  if(!text &&!fileUrl) return;
+  if(currentChat==='AI'){
+    let box=document.getElementById('msgs');
+    box.innerHTML+=`<div class="msg me">${text}<small>Now</small></div>`;
+    inp.value=''; box.scrollTop=box.scrollHeight;
+    box.innerHTML+=`<div class="msg other" id="typing">Typing...</div>`; box.scrollTop=box.scrollHeight;
+    let r=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text})});
+    let d=await r.json();
+    document.getElementById('typing').remove();
+    box.innerHTML+=`<div class="msg other">${d.reply.replace(/\n/g,'<br>')}<small>Now</small></div>`; box.scrollTop=box.scrollHeight;
+    return;
+  }
+  socket.emit('send-message',{from:myId,fromName:myName,to:currentChat,text,file:fileUrl,fileType});
   inp.value='';
 }
-function createGroup(){var name=prompt('Group name?'); if(!name) return; fetch('/api/groups',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,desc:'New group created',members:1,createdBy:me.name})}).then(function(){loadUsers(); tab(2);});}
-function postStatus(){var text=prompt('Wetin you wan post for status?'); if(!text) return; fetch('/api/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:me.name,text:text})}).then(function(){loadUsers(); tab(1); alert('Status posted!');});}
-function postStatusMedia(inp){
-  if(!inp.files[0]) return;
-  var file=inp.files[0]; var fd=new FormData(); fd.append('file',file);
-  fetch('/api/upload',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
-    return fetch('/api/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:me.name,text:file.type.indexOf('video')===0?'🎬 Video Status':'📷 Photo Status',file:d.url,fileType:file.type})});
-  }).then(function(){loadUsers(); tab(1); alert('Status media posted!');}).catch(function(){alert('Upload failed');});
-  inp.value='';
-}
-if(socket.on){
-  socket.on('users-changed',function(){loadUsers();});
-  socket.on('online-users',function(){loadUsers();});
-  socket.on('new-message',function(m){
-    if(!m) return;
-    if(m.from!==me.id&&m.to!==me.id) return;
-    var isOpen=document.getElementById('win').className.indexOf('on')!==-1;
-    if(isOpen&&(cur===m.from||cur===m.to)){
-      var ms=document.getElementById('msgs');
-      // Avoid duplicate of own photo we already showed locally
-      if(m.from===me.id && m.file){
-        // Still show server copy for other devices, but skip if last msg already has it
-        // We show it - duplicate is better than missing
-      }
-      ms.innerHTML+='<div class="msg '+(m.from===me.id?'user':'bot')+'">'+esc(m.text||'')+mediaHtml(m)+'</div>';
-      ms.scrollTop=99999;
-    }
-    loadUsers();
-  });
-  socket.on('new-group',function(){loadUsers();});
-  socket.on('new-status',function(){loadUsers();});
-}
+socket.on('new-message',(m)=>{
+  if(currentChat && ((m.from===currentChat&&m.to===myId)||(m.from===myId&&m.to===currentChat))){
+    currentMessages.push(m); renderMsgs();
+  }
+});
+socket.on('users-changed',()=>{ if(currentChat===null) showTab('chats'); });
+socket.on('new-group',()=>{ showTab('groups'); });
+socket.on('new-status',()=>{});
+socket.on('online-users',(ids)=>{ document.getElementById('onlineCount').textContent='● '+ids.length+' Online'; });
 </script>
 </body>
-                                                                                                                                                                                                                                                                                                                                                                                 </html>
+</html>
