@@ -6,7 +6,7 @@
 <link rel="manifest" href="/manifest.json">
 <link rel="icon" href="/icon.png">
 <meta name="theme-color" content="#ff2e8a">
-<!-- BULLETPROOF LOGIN - This runs FIRST, before anything else. Even if main app fails, this still works -->
+<!-- BULLETPROOF LOGIN - NO RELOAD -->
 <script>
 function join(){
   try{
@@ -19,24 +19,28 @@ function join(){
     try{ var saved = localStorage.getItem('mc_me'); if(saved) oldId = JSON.parse(saved).id; }catch(e){}
     if(!oldId) oldId = 'u' + Date.now() + '_' + Math.floor(Math.random()*100000);
     fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name, id:oldId, publicKey:null})})
-   .then(function(r){ if(!r.ok) throw new Error('Server '+r.status); return r.json(); })
-   .then(function(me){
+  .then(function(r){ if(!r.ok) throw new Error('Server '+r.status); return r.json(); })
+  .then(function(me){
       try{ localStorage.setItem('mc_me', JSON.stringify(me)); }catch(e){}
+      try{ sessionStorage.setItem('mc_me', JSON.stringify(me)); }catch(e){}
+      window.me = me; // keep in memory - no reload, so no wipe
       var login = document.getElementById('login');
       if(login) login.style.display = 'none';
       var label = document.getElementById('meLabel');
       if(label) label.textContent = 'Hi, ' + me.name;
-      // Reload to load full app cleanly with saved login
-      location.reload();
+      // Enter app WITHOUT reload
+      try{ if(typeof doJoin === 'function') doJoin(); }catch(e){}
+      try{ if(typeof loadUsers === 'function') loadUsers(); }catch(e){}
+      if(btn){ btn.textContent = 'Join Chat 🚀'; btn.disabled = false; }
     })
-   .catch(function(e){
-      alert('Login failed: ' + e.message + '\n\nRender fit dey sleep. Wait 30 secs and try again.');
+  .catch(function(e){
+      alert('Login failed: ' + e.message);
       if(btn){ btn.textContent = 'Join Chat 🚀'; btn.disabled = false; }
     });
   }catch(e){ alert('Join error: ' + e.message); }
 }
 function hardReset(){
-  try{ localStorage.removeItem('mc_me'); localStorage.removeItem('mc_keys'); }catch(e){}
+  try{ localStorage.removeItem('mc_me'); localStorage.removeItem('mc_keys'); sessionStorage.removeItem('mc_me'); }catch(e){}
   location.reload();
 }
 </script>
@@ -81,7 +85,7 @@ body{background:#0b0a1a;color:#fff;height:100dvh;display:flex;flex-direction:col
 </head>
 <body>
 <div id="login"><h2>MayorChatZ 🔥 🔒</h2><p style="color:#999">End-to-End Encrypted<br>Enter your name to join</p><input id="myName" placeholder="Your name e.g. Mayor"><button id="joinBtn" onclick="join()">Join Chat 🚀</button><p style="font-size:12px;color:#00ff88">🔒 Messages are end-to-end encrypted</p><button onclick="hardReset()" style="background:transparent!important;color:#888!important;font-size:12px;padding:5px">Having trouble? Tap here to clear &amp; retry</button></div>
-<div class="h"><span>MayorChatZ 🔒</span><span id="meLabel"></span><button onclick="try{localStorage.removeItem('mc_me');location.reload();}catch(e){}" style="background:#2a2350;color:#fff;border:none;padding:6px 10px;border-radius:8px;font-size:12px">Logout</button></div>
+<div class="h"><span>MayorChatZ 🔒</span><span id="meLabel"></span><button onclick="try{localStorage.removeItem('mc_me');sessionStorage.removeItem('mc_me');location.reload();}catch(e){}" style="background:#2a2350;color:#fff;border:none;padding:6px 10px;border-radius:8px;font-size:12px">Logout</button></div>
 <div class="tabs">
  <div class="tab active" id="t0">Chats</div>
  <div class="tab" id="t1">Status</div>
@@ -111,6 +115,7 @@ try{ socket=io(); }catch(e){ socket={on:function(){},emit:function(){},connected
 var cur=null, curName='', rec=null, chunks=[], isRec=false;
 var me=null;
 try{ me=localStorage.getItem('mc_me')?JSON.parse(localStorage.getItem('mc_me')):null; }catch(e){ me=null; }
+if(!me){ try{ me=sessionStorage.getItem('mc_me')?JSON.parse(sessionStorage.getItem('mc_me')):null; }catch(e){ me=null; } }
 var allUsers=[], allGroups=[], allStatus=[], onlineIds=new Set();
 var deliveredIds=new Set(); var lastMsgs={};
 var myKeyPair=null, myPublicJWK=null;
@@ -177,4 +182,4 @@ function check(){ document.getElementById('sb').textContent=document.getElementB
 document.getElementById('inp').addEventListener('input',check);
 document.getElementById('inp').addEventListener('keydown',function(e){ if(e.key==='Enter') go(); });
 document.getElementById('sb').addEventListener('click',function(){ var t=document.getElementById('inp').value.trim(); if(t) go(); else voice(); });
-async function go(){ var i=document.getElementById('inp'); var t=i.value.trim(); if(!t) return; var ms=document.getElementById('msgs'); if(cur==='assistant'){ ms.innerHTML+='<div class="msg user">'+t+'</div>'; i.value=''; check(); ms.scrollTop=99999; try{ var r=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:t})}); var d=await r.json(); ms.innerHTML+='<div class="msg b
+async function go(){ var i=document.getElementById('inp'); var t=i
