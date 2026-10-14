@@ -18,8 +18,8 @@ function join(){
     try{var s=localStorage.getItem('mc_me'); if(s) oldId=JSON.parse(s).id;}catch(e){}
     if(!oldId) oldId='u'+Date.now()+'_'+Math.floor(Math.random()*100000);
     fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,id:oldId,publicKey:null})})
-   .then(function(r){if(!r.ok) throw new Error('Server '+r.status); return r.json();})
-   .then(function(me){
+  .then(function(r){if(!r.ok) throw new Error('Server '+r.status); return r.json();})
+  .then(function(me){
       try{localStorage.setItem('mc_me',JSON.stringify(me));}catch(e){}
       try{sessionStorage.setItem('mc_me',JSON.stringify(me));}catch(e){}
       window.me=me;
@@ -29,7 +29,7 @@ function join(){
       if(typeof loadUsers==='function') loadUsers();
       if(btn){btn.textContent='Join Chat';btn.disabled=false;}
     })
-   .catch(function(e){alert('Login failed: '+e.message); if(btn){btn.textContent='Join Chat';btn.disabled=false;}});
+  .catch(function(e){alert('Login failed: '+e.message); if(btn){btn.textContent='Join Chat';btn.disabled=false;}});
   }catch(e){alert('Join error: '+e.message);}
 }
 function hardReset(){try{localStorage.removeItem('mc_me');sessionStorage.removeItem('mc_me');}catch(e){} location.reload();}
@@ -55,7 +55,8 @@ body{background:#0b0a1a;color:#fff;height:100dvh;display:flex;flex-direction:col
 .win.on{display:flex}
 .ch{background:#1a1033;padding:10px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #2a2350}
 .msgs{flex:1;overflow:auto;padding:15px;display:flex;flex-direction:column;gap:10px;background:#0f0d24}
-.msg{padding:10px 14px;border-radius:18px;max-width:85%;font-size:14px;line-height:1.4;word-break:break-word}
+.msg{padding:10px 14px;border-radius:18px;max-width:85%;font-size:14px;line-height:1.4;word-break:break-word;white-space:pre-wrap}
+.msg video,.msg img{max-width:100%;border-radius:10px;margin-top:5px;display:block}
 .user{background:#ff2a8a;align-self:flex-end;border-bottom-right-radius:4px}
 .bot{background:#2a2350;align-self:flex-start;border-bottom-left-radius:4px}
 .bar{display:flex;align-items:center;gap:7px;padding:8px 8px 12px;background:#1a1033}
@@ -74,7 +75,7 @@ body{background:#0b0a1a;color:#fff;height:100dvh;display:flex;flex-direction:col
 <div class="h"><span>MayorChatZ</span><span id="meLabel"></span><button onclick="try{localStorage.removeItem('mc_me');sessionStorage.removeItem('mc_me');location.reload();}catch(e){}" style="background:#2a2350;color:#fff;border:none;padding:6px 10px;border-radius:8px;font-size:12px">Logout</button></div>
 <div class="tabs"><div class="tab active" id="t0" onclick="tab(0)">Chats</div><div class="tab" id="t1" onclick="tab(1)">Status</div><div class="tab" id="t2" onclick="tab(2)">Groups</div></div>
 <div class="list panel on" id="p0"><div id="chatList"><div class="empty">Loading chats...</div></div></div>
-<div class="panel" id="p1"><div id="statusList"></div><button class="fab" onclick="postStatus()">+</button></div>
+<div class="panel" id="p1"><div id="statusList"></div><input type="file" id="sf2" accept="image/*,video/*" hidden onchange="postStatusMedia(this)"><button class="fab" onclick="postStatus()">+</button><button class="fab" onclick="document.getElementById('sf2').click()" style="bottom:90px;background:#00cec9">📷</button></div>
 <div class="panel" id="p2"><div id="groupList"></div><button class="fab" onclick="createGroup()">+</button></div>
 <div class="win" id="win">
  <div class="ch"><div style="font-size:22px;cursor:pointer" onclick="closeChat()">←</div><div class="av" id="ca">M</div><div style="flex:1"><div id="cn" style="font-weight:bold">MayorChatZ Assistant</div><div style="font-size:11px;color:#00ff88">Online</div></div></div>
@@ -92,6 +93,12 @@ function doJoin(){if(me&&me.id&&socket.emit) socket.emit('join',me.id,me.name);}
 if(socket.on) socket.on('connect',doJoin);
 if(me){document.getElementById('login').style.display='none';document.getElementById('meLabel').textContent='Hi, '+me.name;doJoin();loadUsers();}
 function esc(s){return String(s||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function mediaHtml(m){
+  if(!m.file) return '';
+  if(m.fileType && m.fileType.indexOf('video')===0) return '<video controls playsinline src="'+m.file+'" style="max-width:100%;border-radius:10px;margin-top:5px"></video>';
+  if(m.fileType && m.fileType.indexOf('audio')===0) return '<audio controls src="'+m.file+'"></audio>';
+  return '<img src="'+m.file+'" style="max-width:100%;border-radius:10px;margin-top:5px">';
+}
 function loadUsers(){
   fetch('/api/users').then(function(r){return r.json();}).then(function(u){allUsers=u||[];return fetch('/api/groups').then(function(r){return r.json();});}).then(function(g){allGroups=g||[];return fetch('/api/status').then(function(r){return r.json();});}).then(function(s){allStatus=s||[];renderAll();}).catch(function(){renderAll();});
 }
@@ -103,7 +110,7 @@ function renderAll(){
   document.getElementById('chatList').innerHTML=html;
   var gHtml=''; if(allGroups.length===0){gHtml='<div class="empty">No groups yet. Click + to create group!</div>';} else{for(var k=0;k<allGroups.length;k++){var gr=allGroups[k];gHtml+='<div class="item" onclick="openChat(\''+gr.id+'\',\''+esc(gr.name).replace(/'/g,'')+'\')"><div class="av">G</div><div><div class="nm">'+esc(gr.name)+'</div><div class="lt">'+esc(gr.desc||'Group chat')+'</div></div></div>';}}
   document.getElementById('groupList').innerHTML=gHtml;
-  var sHtml=''; if(allStatus.length===0){sHtml='<div class="empty">No status yet. Click + to post!</div>';} else{for(var s=0;s<allStatus.length;s++){var st=allStatus[s];sHtml+='<div class="item"><div class="av">'+esc((st.name||'M')[0])+'</div><div><div class="nm">'+esc(st.name)+'</div><div class="lt">'+esc(st.text||'')+'</div></div></div>';}}
+  var sHtml=''; if(allStatus.length===0){sHtml='<div class="empty">No status yet. Click + to post!</div>';} else{for(var s=0;s<allStatus.length;s++){var st=allStatus[s];sHtml+='<div class="item"><div class="av">'+esc((st.name||'M')[0])+'</div><div><div class="nm">'+esc(st.name)+'</div><div class="lt">'+esc(st.text||'')+mediaHtml(st)+'</div></div></div>';}}
   document.getElementById('statusList').innerHTML=sHtml;
 }
 function openChat(id,name){
@@ -117,7 +124,7 @@ function openChat(id,name){
   if(isGroup){ms.innerHTML='<div class="msg bot">Group chat with '+esc(name)+'.</div>';return;}
   fetch('/api/messages?from='+me.id+'&to='+id).then(function(r){return r.json();}).then(function(msgs){
     if(!msgs||msgs.length===0){ms.innerHTML='<div class="msg bot">You don open chat with '+esc(name)+'. Send message now!</div>';return;}
-    var h=''; for(var i=0;i<msgs.length;i++){var m=msgs[i]; h+='<div class="msg '+(m.from===me.id?'user':'bot')+'">'+esc(m.text||'')+(m.file?'<br><img src="'+m.file+'" style="max-width:100%;border-radius:10px;margin-top:5px">':'')+'</div>';}
+    var h=''; for(var i=0;i<msgs.length;i++){var m=msgs[i]; h+='<div class="msg '+(m.from===me.id?'user':'bot')+'">'+esc(m.text||'')+mediaHtml(m)+'</div>';}
     ms.innerHTML=h;
   }).catch(function(){ms.innerHTML='<div class="msg bot">Chat with '+esc(name)+' started.</div>';});
   ms.scrollTop=99999;
@@ -139,13 +146,25 @@ function sendPic(inp){
   if(!inp.files[0]) return;
   if(!cur||cur==='assistant'){alert('Open a person chat first!'); inp.value=''; return;}
   var file=inp.files[0]; var fd=new FormData(); fd.append('file',file);
+  var ms=document.getElementById('msgs');
+  var localUrl=URL.createObjectURL(file);
+  var media=file.type.indexOf('video')===0?'<video controls playsinline src="'+localUrl+'" style="max-width:100%;border-radius:10px"></video>':file.type.indexOf('audio')===0?'<audio controls src="'+localUrl+'"></audio>':'<img src="'+localUrl+'" style="max-width:100%;border-radius:10px">';
+  ms.innerHTML+='<div class="msg user">'+media+'</div>'; ms.scrollTop=99999;
   fetch('/api/upload',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
-    socket.emit('send-message',{from:me.id,fromName:me.name,to:cur,text:'Photo',file:d.url,fileType:file.type});
-  }).catch(function(){alert('Upload failed');});
+    socket.emit('send-message',{from:me.id,fromName:me.name,to:cur,text:file.type.indexOf('video')===0?'🎬 Video':'📷 Photo',file:d.url,fileType:file.type});
+  }).catch(function(){alert('Upload failed - file too big? Try under 50MB');});
   inp.value='';
 }
 function createGroup(){var name=prompt('Group name?'); if(!name) return; fetch('/api/groups',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,desc:'New group created',members:1,createdBy:me.name})}).then(function(){loadUsers(); tab(2);});}
 function postStatus(){var text=prompt('Wetin you wan post for status?'); if(!text) return; fetch('/api/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:me.name,text:text})}).then(function(){loadUsers(); tab(1); alert('Status posted!');});}
+function postStatusMedia(inp){
+  if(!inp.files[0]) return;
+  var file=inp.files[0]; var fd=new FormData(); fd.append('file',file);
+  fetch('/api/upload',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
+    return fetch('/api/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:me.name,text:file.type.indexOf('video')===0?'🎬 Video Status':'📷 Photo Status',file:d.url,fileType:file.type})});
+  }).then(function(){loadUsers(); tab(1); alert('Status media posted!');}).catch(function(){alert('Upload failed');});
+  inp.value='';
+}
 if(socket.on){
   socket.on('users-changed',function(){loadUsers();});
   socket.on('online-users',function(){loadUsers();});
@@ -155,7 +174,12 @@ if(socket.on){
     var isOpen=document.getElementById('win').className.indexOf('on')!==-1;
     if(isOpen&&(cur===m.from||cur===m.to)){
       var ms=document.getElementById('msgs');
-      ms.innerHTML+='<div class="msg '+(m.from===me.id?'user':'bot')+'">'+esc(m.text||'')+(m.file?'<br><img src="'+m.file+'" style="max-width:100%;border-radius:10px;margin-top:5px">':'')+'</div>';
+      // Avoid duplicate of own photo we already showed locally
+      if(m.from===me.id && m.file){
+        // Still show server copy for other devices, but skip if last msg already has it
+        // We show it - duplicate is better than missing
+      }
+      ms.innerHTML+='<div class="msg '+(m.from===me.id?'user':'bot')+'">'+esc(m.text||'')+mediaHtml(m)+'</div>';
       ms.scrollTop=99999;
     }
     loadUsers();
@@ -165,4 +189,4 @@ if(socket.on){
 }
 </script>
 </body>
-  </html>
+                                                                                                                                                                                                                                                                                                                                                                                 </html>
