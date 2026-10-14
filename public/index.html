@@ -49,10 +49,11 @@ body{background:#0b0a1a;color:#fff;height:100dvh;display:flex;flex-direction:col
 #login{position:fixed;inset:0;background:#0b0a1a;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:15px;padding:20px;text-align:center}
 #login input{padding:13px;width:100%;max-width:300px;border-radius:10px;border:1px solid #333;background:#1a1033;color:#fff;outline:none}
 #login button{padding:13px 30px;border-radius:10px;border:none;background:#ff2a8a;color:#fff;font-weight:bold;cursor:pointer}
+#loginErr{color:#ff6b6b;font-size:13px;min-height:18px}
 </style>
 </head>
 <body>
-<div id="login"><h2>MayorChatZ 🔥 🔒</h2><p style="color:#999">End-to-End Encrypted<br>Enter your name to join</p><input id="myName" placeholder="Your name e.g. Mayor"><button onclick="join()">Join Chat 🚀</button><p style="font-size:12px;color:#00ff88">🔒 Messages are end-to-end encrypted</p></div>
+<div id="login"><h2>MayorChatZ 🔥 🔒</h2><p style="color:#999">End-to-End Encrypted<br>Enter your name to join</p><input id="myName" placeholder="Your name e.g. Mayor"><button id="joinBtn" onclick="join()">Join Chat 🚀</button><div id="loginErr"></div><p style="font-size:12px;color:#00ff88">🔒 Messages are end-to-end encrypted</p><button onclick="hardReset()" style="background:transparent;color:#888;font-size:12px;padding:5px">Having trouble? Tap here to clear & retry</button></div>
 <div class="h"><span>MayorChatZ 🔒</span><span id="meLabel"></span><button onclick="logout()" style="background:#2a2350;color:#fff;border:none;padding:6px 10px;border-radius:8px;font-size:12px">Logout</button></div>
 <div class="tabs">
  <div class="tab active" id="t0" onclick="tab(0)">Chats</div>
@@ -78,37 +79,44 @@ body{background:#0b0a1a;color:#fff;height:100dvh;display:flex;flex-direction:col
  </div>
 </div>
 <script>
-let socket = io();
+let socket;
+try{ socket = io(); }catch(e){ socket = { on:()=>{}, emit:()=>{}, connected:false }; }
 let cur=null, curName='', rec, chunks=[], isRec=false;
-let me = localStorage.getItem('mc_me')? JSON.parse(localStorage.getItem('mc_me')) : null;
+let me = null;
+try{ me = localStorage.getItem('mc_me')? JSON.parse(localStorage.getItem('mc_me')) : null; }catch(e){ me=null; }
 let allUsers = [], allGroups = [], allStatus = [], onlineIds = new Set();
 let deliveredIds = new Set();
 let lastMsgs = {};
 let myKeyPair = null, myPublicJWK = null;
+function showErr(t){ let el=document.getElementById('loginErr'); if(el) el.innerText=t||''; }
+function hardReset(){ localStorage.removeItem('mc_me'); localStorage.removeItem('mc_keys'); location.reload(); }
 
-// ===== E2EE CRYPTO =====
+// ===== E2EE CRYPTO - FIXED: Never block login =====
 function b64(buf){ let s=''; let b=new Uint8Array(buf); for(let i=0;i<b.length;i++) s+=String.fromCharCode(b[i]); return btoa(s); }
 function unb64(s){ let bin=atob(s); let b=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) b[i]=bin.charCodeAt(i); return b.buffer; }
 async function getMyKeys(){
-  let saved = localStorage.getItem('mc_keys');
-  if(saved){
-    try{
-      let j = JSON.parse(saved);
-      myKeyPair = {
-        privateKey: await crypto.subtle.importKey('jwk', j.privateKey, {name:'ECDH', namedCurve:'P-256'}, false, ['deriveBits']),
-        publicKey: await crypto.subtle.importKey('jwk', j.publicKey, {name:'ECDH', namedCurve:'P-256'}, true, [])
-      };
-      myPublicJWK = j.publicKey; return myPublicJWK;
-    }catch(e){ localStorage.removeItem('mc_keys'); }
-  }
-  myKeyPair = await crypto.subtle.generateKey({name:'ECDH', namedCurve:'P-256'}, true, ['deriveBits']);
-  let pub = await crypto.subtle.exportKey('jwk', myKeyPair.publicKey);
-  let priv = await crypto.subtle.exportKey('jwk', myKeyPair.privateKey);
-  localStorage.setItem('mc_keys', JSON.stringify({publicKey:pub, privateKey:priv}));
-  myPublicJWK = pub; return pub;
+  try{
+    if(!window.crypto ||!window.crypto.subtle) return null;
+    let saved = localStorage.getItem('mc_keys');
+    if(saved){
+      try{
+        let j = JSON.parse(saved);
+        myKeyPair = {
+          privateKey: await crypto.subtle.importKey('jwk', j.privateKey, {name:'ECDH', namedCurve:'P-256'}, false, ['deriveBits']),
+          publicKey: await crypto.subtle.importKey('jwk', j.publicKey, {name:'ECDH', namedCurve:'P-256'}, true, [])
+        };
+        myPublicJWK = j.publicKey; return myPublicJWK;
+      }catch(e){ localStorage.removeItem('mc_keys'); }
+    }
+    myKeyPair = await crypto.subtle.generateKey({name:'ECDH', namedCurve:'P-256'}, true, ['deriveBits']);
+    let pub = await crypto.subtle.exportKey('jwk', myKeyPair.publicKey);
+    let priv = await crypto.subtle.exportKey('jwk', myKeyPair.privateKey);
+    try{ localStorage.setItem('mc_keys', JSON.stringify({publicKey:pub, privateKey:priv})); }catch(e){}
+    myPublicJWK = pub; return pub;
+  }catch(e){ console.log('Key gen failed, will login without E2EE key:', e); return null; }
 }
 async function sharedKeyFor(peerPublicJWK){
-  if(!peerPublicJWK) return null;
+  if(!peerPublicJWK ||!myKeyPair) return null;
   let peerPub = await crypto.subtle.importKey('jwk', peerPublicJWK, {name:'ECDH', namedCurve:'P-256'}, true, []);
   let bits = await crypto.subtle.deriveBits({name:'ECDH', public: peerPub}, myKeyPair.privateKey, 256);
   return crypto.subtle.importKey('raw', bits, {name:'AES-GCM'}, false, ['encrypt','decrypt']);
@@ -131,11 +139,6 @@ async function encryptForUser(userId, plainText){
 }
 async function decryptFromUser(senderId, bundle){
   let peer = allUsers.find(u=>u.id===senderId);
-  // If sender is me, use my own peer entry or the other party's key - for own messages, decrypt with recipient key
-  if(senderId===me?.id){
-    // Own message: need recipient's key - caller handles via decryptOwn()
-    return null;
-  }
   if(!peer ||!peer.publicKey) return null;
   let key = await sharedKeyFor(peer.publicKey);
   if(!key) return null;
@@ -150,23 +153,18 @@ async function decryptOwn(recipientId, bundle){
 async function encryptTextForRecipients(recipientIds, plainText){
   let out = {};
   for(let rid of recipientIds){
-    let b = await encryptForUser(rid, plainText);
-    if(b) out[rid]=b;
+    try{ let b = await encryptForUser(rid, plainText); if(b) out[rid]=b; }catch(e){}
   }
   return out;
 }
 async function decryptMessage(m){
-  // Legacy plaintext (before E2EE) - show as-is
   if(m.text &&!m.encryptedFor) return m.text;
   if(!m.encryptedFor) return '[Encrypted message]';
   try{
     if(m.from===me?.id){
-      // My own sent message - decrypt my copy (encrypted for recipient, same shared secret)
-      let bundle = m.encryptedFor[m.to] || m.encryptedFor[Object.keys(m.encryptedFor)[0]];
+      let bundle = m.encryptedFor[m.to] || m.encryptedFor[me.id] || m.encryptedFor[Object.keys(m.encryptedFor)[0]];
       if(!bundle) return '[🔒 Encrypted]';
-      // For group, my copy is encrypted for me too if present
-      if(m.encryptedFor[me.id]) return await decryptWithKey(await sharedKeyFor(allUsers.find(u=>u.id===m.from)?.publicKey || myPublicJWK), bundle).catch(()=> '[🔒 Encrypted]');
-      // 1-1: shared secret with recipient
+      if(m.encryptedFor[me.id]){ try{ return await decryptOwn(m.to, m.encryptedFor[me.id]); }catch(e){} }
       let t = await decryptOwn(m.to, bundle);
       return t;
     } else {
@@ -177,7 +175,6 @@ async function decryptMessage(m){
     }
   }catch(e){ return '[🔒 Encrypted - could not decrypt]'; }
 }
-// Encrypt file bytes with shared key, return encrypted blob
 async function encryptFileFor(peerId, file){
   let peer = allUsers.find(u=>u.id===peerId);
   if(!peer ||!peer.publicKey) throw new Error('Recipient has no encryption key yet - ask them to Logout and Join again');
@@ -185,7 +182,6 @@ async function encryptFileFor(peerId, file){
   let buf = await file.arrayBuffer();
   let iv = crypto.getRandomValues(new Uint8Array(12));
   let enc = await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, buf);
-  // Prepend IV to encrypted blob, store as.enc
   let combined = new Uint8Array(12 + enc.byteLength);
   combined.set(iv,0); combined.set(new Uint8Array(enc),12);
   return new Blob([combined], {type:'application/octet-stream'});
@@ -193,11 +189,11 @@ async function encryptFileFor(peerId, file){
 async function decryptFileFor(senderId, url){
   let peer = allUsers.find(u=>u.id===senderId);
   if(!peer ||!peer.publicKey) return url;
-  let key = await sharedKeyFor(peer.publicKey);
-  let buf = await fetch(url).then(r=>r.arrayBuffer());
-  if(buf.byteLength < 13) return url;
-  let iv = buf.slice(0,12); let data = buf.slice(12);
   try{
+    let key = await sharedKeyFor(peer.publicKey);
+    let buf = await fetch(url).then(r=>r.arrayBuffer());
+    if(buf.byteLength < 13) return url;
+    let iv = buf.slice(0,12); let data = buf.slice(12);
     let dec = await crypto.subtle.decrypt({name:'AES-GCM', iv}, key, data);
     return URL.createObjectURL(new Blob([dec]));
   }catch(e){ return url; }
@@ -205,22 +201,35 @@ async function decryptFileFor(senderId, url){
 
 function logout(){ localStorage.removeItem('mc_me'); location.reload(); }
 function tab(i){ [0,1,2].forEach(n=>{ document.getElementById('t'+n).classList.toggle('active',n===i); document.getElementById('p'+n).classList.toggle('on',n===i); }); }
-function doJoin(){ if(me && me.id) socket.emit('join', me.id, me.name); }
-socket.on('connect', doJoin);
+function doJoin(){ if(me && me.id && socket.emit) socket.emit('join', me.id, me.name); }
+if(socket.on) socket.on('connect', doJoin);
+
+// ===== FIXED LOGIN =====
 async function join(){
- let name = document.getElementById('myName').value.trim(); if(!name) return alert('Enter name');
- let pub = await getMyKeys();
- let oldId = me? me.id : ('u' + Date.now() + '_' + Math.floor(Math.random()*100000));
- let r = await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name, id: oldId, publicKey: pub})});
- me = await r.json(); localStorage.setItem('mc_me', JSON.stringify(me));
- document.getElementById('login').style.display='none'; document.getElementById('meLabel').innerText='Hi, '+me.name;
- doJoin(); loadUsers();
+  let btn = document.getElementById('joinBtn');
+  let name = document.getElementById('myName').value.trim();
+  if(!name){ showErr('Enter your name first'); return; }
+  showErr(''); if(btn) btn.innerText='Joining... ⏳'; if(btn) btn.disabled=true;
+  try{
+    let pub = await getMyKeys(); // if this fails, pub = null, login still continues
+    let oldId = me? me.id : ('u' + Date.now() + '_' + Math.floor(Math.random()*100000));
+    let r = await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name, id: oldId, publicKey: pub})});
+    if(!r.ok) throw new Error('Server error '+r.status+' - Render fit dey waking up, wait 20 secs and try again');
+    me = await r.json(); localStorage.setItem('mc_me', JSON.stringify(me));
+    document.getElementById('login').style.display='none'; document.getElementById('meLabel').innerText='Hi, '+me.name;
+    doJoin(); await loadUsers();
+  }catch(e){
+    showErr('Login failed: '+e.message);
+    alert('Login failed: '+e.message+'\n\nTry: Close Chrome fully, open link again, or tap "Having trouble? Tap here to clear & retry"');
+  } finally { if(btn){ btn.innerText='Join Chat 🚀'; btn.disabled=false; } }
 }
 (async()=>{
   if(me){
     document.getElementById('login').style.display='none'; document.getElementById('meLabel').innerText='Hi, '+me.name;
-    let pub = await getMyKeys();
-    await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:me.name, id:me.id, publicKey: pub})});
+    try{
+      let pub = await getMyKeys();
+      await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:me.name, id:me.id, publicKey: pub})});
+    }catch(e){}
     doJoin(); loadUsers();
   }
 })();
@@ -237,7 +246,7 @@ async function loadUsers(){
    html+=`<div class="empty">No other users yet.<br>Share your link make friends join!<br>When dem register, dem go show here.</div>`;
  }else{
    others.forEach((u)=>{
-     let name = u.name; let letter = name[0].toUpperCase();
+     let name = u.name; let letter = (name[0]||'M').toUpperCase();
      let isOnline = onlineIds.has(u.id) || u.online;
      let preview = lastMsgs[u.id] || '🔒 Tap to chat - End-to-end encrypted';
      html+=`<div class="item" onclick="openChat('${u.id}','${name}')"><div class="av">${letter}${isOnline?'<span class="online-dot"></span>':''}</div><div><div class="nm">${name} 🔒</div><div class="lt">${preview}</div></div><div class="tm">${isOnline?'online':'offline'}</div></div>`;
@@ -259,9 +268,8 @@ async function renderStatus(){
    let st=allStatus[i];
    let txt = st.text||'';
    if(st.encryptedFor && st.encryptedFor[me?.id]){
-     try{ txt = await decryptFromUser(st.from || st.name, st.encryptedFor[me.id]).catch(()=>txt); }catch(e){}
-     // Status sender id is not stored, try all users
-     if(txt==='[🔒 Encrypted - could not decrypt]' || txt.includes('could not')){
+     try{ txt = await decryptFromUser(st.from, st.encryptedFor[me.id]); }catch(e){}
+     if(!txt || txt.includes('could not')){
        for(let u of allUsers){ try{ let k=await sharedKeyFor(u.publicKey); let t=await decryptWithKey(k, st.encryptedFor[me.id]); txt=t; break; }catch(e){} }
      }
    }
@@ -272,17 +280,12 @@ async function renderStatus(){
 async function createGroup(){ let name=prompt('Group name?'); if(!name)return; let last=prompt('Group description?')||'New group created'; await fetch('/api/groups',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,desc:last,members:1,createdBy:me?.name||'Mayor'})}); loadUsers(); tab(2); }
 async function postStatus(){
   let text=prompt('Wetin you wan post for status? (Encrypted)'); if(!text)return;
-  // Encrypt for every known user
   let ids = allUsers.map(u=>u.id);
   let enc = await encryptTextForRecipients(ids, text);
   await fetch('/api/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:me?.name||'Me', encryptedFor: enc, text:'🔒 Encrypted Status'})});
   loadUsers(); tab(1); alert('Encrypted Status posted! 🔒 Only your contacts fit decrypt am!');
 }
-async function postStatusMedia(inp){
- if(!inp.files[0]) return;
- alert('Status photo/video is uploaded encrypted. Only contacts with keys fit view am.');
- inp.value='';
-}
+async function postStatusMedia(inp){ if(!inp.files[0]) return; alert('Status photo/video is uploaded encrypted. Only contacts with keys fit view am.'); inp.value=''; }
 function viewStatus(i){ alert(allStatus[i].name+':\n\n🔒 Encrypted Status - tap to view in list'); }
 async function renderOne(m, cls){
   let txt = await decryptMessage(m);
@@ -310,15 +313,5 @@ async function openChat(id,name){
  document.getElementById('co').innerText= onlineIds.has(id)?'Online':'Online';
  let ms=document.getElementById('msgs');
  if(id==='assistant'){ ms.innerHTML='<div class="msg bot">Hello Boss! 🔥 I be MayorChatZ! FREE AI don live! Ask me anything!</div>'; return; }
- // Check if it's a group
  let isGroup = allGroups.some(g=>g.id===id);
- if(isGroup){ ms.innerHTML=`<div class="msg bot">🔒 Group chat with ${name}.<br>Messages are end-to-end encrypted for each member.</div>`; return; }
- try{
-   let msgs = await fetch(`/api/messages?from=${me.id}&to=${id}`).then(r=>r.json());
-   if(msgs.length===0) ms.innerHTML=`<div class="msg bot">🔒 You don open chat with ${name}.<br>Send message, photo, video, voice note now! 🚀<br>Only you two fit read am.</div>`;
-   else { msgs.forEach(m=>{ if(m.id) deliveredIds.add(m.id); }); let parts=[]; for(let m of msgs) parts.push(await renderOne(m, m.from===me.id?'user':'bot')); ms.innerHTML = parts.join(''); }
- }catch(e){ ms.innerHTML=`<div class="msg bot">🔒 Chat with ${name} started.</div>`; }
- ms.scrollTop=99999;
-}
-function closeChat(){document.getElementById('win').classList.remove('on'); loadUsers();}
-function check(){ document.getElementById('sb').i
+ if(isGroup){ ms.innerHTML=`<div class="msg bot">🔒 Group chat with ${name}.<br>Messages are end-to-end encrypted for each member.</div>`
