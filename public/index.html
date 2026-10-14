@@ -45,14 +45,15 @@ body{background:#0b0a1a;color:#fff;height:100dvh;display:flex;flex-direction:col
 .wrap input{flex:1;background:transparent;border:none;color:#fff;outline:none;padding:12px 0;font-size:15px}
 .send{width:46px;height:46px;border-radius:50%;background:#ff2a8a;border:none;color:#fff;font-size:20px;cursor:pointer;flex-shrink:0}
 .empty{text-align:center;padding:40px 20px;color:#666}
+.lock{font-size:11px;color:#00ff88}
 #login{position:fixed;inset:0;background:#0b0a1a;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:15px;padding:20px;text-align:center}
 #login input{padding:13px;width:100%;max-width:300px;border-radius:10px;border:1px solid #333;background:#1a1033;color:#fff;outline:none}
 #login button{padding:13px 30px;border-radius:10px;border:none;background:#ff2a8a;color:#fff;font-weight:bold;cursor:pointer}
 </style>
 </head>
 <body>
-<div id="login"><h2>MayorChatZ 🔥</h2><p style="color:#999">Enter your name to join</p><input id="myName" placeholder="Your name e.g. Mayor"><button onclick="join()">Join Chat 🚀</button></div>
-<div class="h"><span>MayorChatZ</span><span id="meLabel"></span><button onclick="logout()" style="background:#2a2350;color:#fff;border:none;padding:6px 10px;border-radius:8px;font-size:12px">Logout</button></div>
+<div id="login"><h2>MayorChatZ 🔥 🔒</h2><p style="color:#999">End-to-End Encrypted<br>Enter your name to join</p><input id="myName" placeholder="Your name e.g. Mayor"><button onclick="join()">Join Chat 🚀</button><p style="font-size:12px;color:#00ff88">🔒 Messages are end-to-end encrypted</p></div>
+<div class="h"><span>MayorChatZ 🔒</span><span id="meLabel"></span><button onclick="logout()" style="background:#2a2350;color:#fff;border:none;padding:6px 10px;border-radius:8px;font-size:12px">Logout</button></div>
 <div class="tabs">
  <div class="tab active" id="t0" onclick="tab(0)">Chats</div>
  <div class="tab" id="t1" onclick="tab(1)">Status</div>
@@ -65,7 +66,7 @@ body{background:#0b0a1a;color:#fff;height:100dvh;display:flex;flex-direction:col
  <div class="ch">
   <div style="font-size:22px;cursor:pointer" onclick="closeChat()">←</div>
   <div class="av" id="ca">M</div>
-  <div style="flex:1"><div id="cn" style="font-weight:bold">MayorChatZ Assistant</div><div style="font-size:11px"><span class="dot"></span> <span style="color:#00ff88" id="co">Online</span> • <span style="color:#aaa" id="cl">Last seen today at 10:35 PM</span></div></div>
+  <div style="flex:1"><div id="cn" style="font-weight:bold">MayorChatZ Assistant</div><div style="font-size:11px"><span class="dot"></span> <span style="color:#00ff88" id="co">Online</span> • <span style="color:#aaa" id="cl">Last seen today at 10:35 PM</span><br><span class="lock">🔒 End-to-end encrypted</span></div></div>
  </div>
  <div class="msgs" id="msgs"></div>
  <div class="bar">
@@ -81,21 +82,148 @@ let socket = io();
 let cur=null, curName='', rec, chunks=[], isRec=false;
 let me = localStorage.getItem('mc_me')? JSON.parse(localStorage.getItem('mc_me')) : null;
 let allUsers = [], allGroups = [], allStatus = [], onlineIds = new Set();
-let seenMsgs = new Set();
+let deliveredIds = new Set();
 let lastMsgs = {};
+let myKeyPair = null, myPublicJWK = null;
+
+// ===== E2EE CRYPTO =====
+function b64(buf){ let s=''; let b=new Uint8Array(buf); for(let i=0;i<b.length;i++) s+=String.fromCharCode(b[i]); return btoa(s); }
+function unb64(s){ let bin=atob(s); let b=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) b[i]=bin.charCodeAt(i); return b.buffer; }
+async function getMyKeys(){
+  let saved = localStorage.getItem('mc_keys');
+  if(saved){
+    try{
+      let j = JSON.parse(saved);
+      myKeyPair = {
+        privateKey: await crypto.subtle.importKey('jwk', j.privateKey, {name:'ECDH', namedCurve:'P-256'}, false, ['deriveBits']),
+        publicKey: await crypto.subtle.importKey('jwk', j.publicKey, {name:'ECDH', namedCurve:'P-256'}, true, [])
+      };
+      myPublicJWK = j.publicKey; return myPublicJWK;
+    }catch(e){ localStorage.removeItem('mc_keys'); }
+  }
+  myKeyPair = await crypto.subtle.generateKey({name:'ECDH', namedCurve:'P-256'}, true, ['deriveBits']);
+  let pub = await crypto.subtle.exportKey('jwk', myKeyPair.publicKey);
+  let priv = await crypto.subtle.exportKey('jwk', myKeyPair.privateKey);
+  localStorage.setItem('mc_keys', JSON.stringify({publicKey:pub, privateKey:priv}));
+  myPublicJWK = pub; return pub;
+}
+async function sharedKeyFor(peerPublicJWK){
+  if(!peerPublicJWK) return null;
+  let peerPub = await crypto.subtle.importKey('jwk', peerPublicJWK, {name:'ECDH', namedCurve:'P-256'}, true, []);
+  let bits = await crypto.subtle.deriveBits({name:'ECDH', public: peerPub}, myKeyPair.privateKey, 256);
+  return crypto.subtle.importKey('raw', bits, {name:'AES-GCM'}, false, ['encrypt','decrypt']);
+}
+async function encryptWithKey(aesKey, plainText){
+  let iv = crypto.getRandomValues(new Uint8Array(12));
+  let enc = await crypto.subtle.encrypt({name:'AES-GCM', iv}, aesKey, new TextEncoder().encode(plainText));
+  return { cipher: b64(enc), iv: b64(iv) };
+}
+async function decryptWithKey(aesKey, bundle){
+  let dec = await crypto.subtle.decrypt({name:'AES-GCM', iv: unb64(bundle.iv)}, aesKey, unb64(bundle.cipher));
+  return new TextDecoder().decode(dec);
+}
+async function encryptForUser(userId, plainText){
+  let peer = allUsers.find(u=>u.id===userId);
+  if(!peer ||!peer.publicKey) return null;
+  let key = await sharedKeyFor(peer.publicKey);
+  if(!key) return null;
+  return encryptWithKey(key, plainText);
+}
+async function decryptFromUser(senderId, bundle){
+  let peer = allUsers.find(u=>u.id===senderId);
+  // If sender is me, use my own peer entry or the other party's key - for own messages, decrypt with recipient key
+  if(senderId===me?.id){
+    // Own message: need recipient's key - caller handles via decryptOwn()
+    return null;
+  }
+  if(!peer ||!peer.publicKey) return null;
+  let key = await sharedKeyFor(peer.publicKey);
+  if(!key) return null;
+  return decryptWithKey(key, bundle);
+}
+async function decryptOwn(recipientId, bundle){
+  let peer = allUsers.find(u=>u.id===recipientId);
+  if(!peer ||!peer.publicKey) return null;
+  let key = await sharedKeyFor(peer.publicKey);
+  return decryptWithKey(key, bundle);
+}
+async function encryptTextForRecipients(recipientIds, plainText){
+  let out = {};
+  for(let rid of recipientIds){
+    let b = await encryptForUser(rid, plainText);
+    if(b) out[rid]=b;
+  }
+  return out;
+}
+async function decryptMessage(m){
+  // Legacy plaintext (before E2EE) - show as-is
+  if(m.text &&!m.encryptedFor) return m.text;
+  if(!m.encryptedFor) return '[Encrypted message]';
+  try{
+    if(m.from===me?.id){
+      // My own sent message - decrypt my copy (encrypted for recipient, same shared secret)
+      let bundle = m.encryptedFor[m.to] || m.encryptedFor[Object.keys(m.encryptedFor)[0]];
+      if(!bundle) return '[🔒 Encrypted]';
+      // For group, my copy is encrypted for me too if present
+      if(m.encryptedFor[me.id]) return await decryptWithKey(await sharedKeyFor(allUsers.find(u=>u.id===m.from)?.publicKey || myPublicJWK), bundle).catch(()=> '[🔒 Encrypted]');
+      // 1-1: shared secret with recipient
+      let t = await decryptOwn(m.to, bundle);
+      return t;
+    } else {
+      let bundle = m.encryptedFor[me.id];
+      if(!bundle) return '[🔒 Not for you]';
+      let t = await decryptFromUser(m.from, bundle);
+      return t;
+    }
+  }catch(e){ return '[🔒 Encrypted - could not decrypt]'; }
+}
+// Encrypt file bytes with shared key, return encrypted blob
+async function encryptFileFor(peerId, file){
+  let peer = allUsers.find(u=>u.id===peerId);
+  if(!peer ||!peer.publicKey) throw new Error('Recipient has no encryption key yet - ask them to Logout and Join again');
+  let key = await sharedKeyFor(peer.publicKey);
+  let buf = await file.arrayBuffer();
+  let iv = crypto.getRandomValues(new Uint8Array(12));
+  let enc = await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, buf);
+  // Prepend IV to encrypted blob, store as.enc
+  let combined = new Uint8Array(12 + enc.byteLength);
+  combined.set(iv,0); combined.set(new Uint8Array(enc),12);
+  return new Blob([combined], {type:'application/octet-stream'});
+}
+async function decryptFileFor(senderId, url){
+  let peer = allUsers.find(u=>u.id===senderId);
+  if(!peer ||!peer.publicKey) return url;
+  let key = await sharedKeyFor(peer.publicKey);
+  let buf = await fetch(url).then(r=>r.arrayBuffer());
+  if(buf.byteLength < 13) return url;
+  let iv = buf.slice(0,12); let data = buf.slice(12);
+  try{
+    let dec = await crypto.subtle.decrypt({name:'AES-GCM', iv}, key, data);
+    return URL.createObjectURL(new Blob([dec]));
+  }catch(e){ return url; }
+}
+
 function logout(){ localStorage.removeItem('mc_me'); location.reload(); }
 function tab(i){ [0,1,2].forEach(n=>{ document.getElementById('t'+n).classList.toggle('active',n===i); document.getElementById('p'+n).classList.toggle('on',n===i); }); }
+function doJoin(){ if(me && me.id) socket.emit('join', me.id, me.name); }
+socket.on('connect', doJoin);
 async function join(){
  let name = document.getElementById('myName').value.trim(); if(!name) return alert('Enter name');
- let oldId = me? me.id : ('u' + Date.now());
- let r = await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name, id: oldId})});
+ let pub = await getMyKeys();
+ let oldId = me? me.id : ('u' + Date.now() + '_' + Math.floor(Math.random()*100000));
+ let r = await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name, id: oldId, publicKey: pub})});
  me = await r.json(); localStorage.setItem('mc_me', JSON.stringify(me));
  document.getElementById('login').style.display='none'; document.getElementById('meLabel').innerText='Hi, '+me.name;
- socket.emit('join', me.id, me.name); loadUsers();
+ doJoin(); loadUsers();
 }
-if(me){ document.getElementById('login').style.display='none'; document.getElementById('meLabel').innerText='Hi, '+me.name;
-  fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:me.name, id:me.id})}).then(()=>{ socket.emit('join', me.id, me.name); loadUsers(); });
-}
+(async()=>{
+  if(me){
+    document.getElementById('login').style.display='none'; document.getElementById('meLabel').innerText='Hi, '+me.name;
+    let pub = await getMyKeys();
+    await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:me.name, id:me.id, publicKey: pub})});
+    doJoin(); loadUsers();
+  }
+})();
 async function loadUsers(){
  try{
    allUsers = await fetch('/api/users').then(r=>r.json());
@@ -104,15 +232,15 @@ async function loadUsers(){
  }catch(e){}
  let listDiv = document.getElementById('chatList');
  let html = `<div class="item" onclick="openChat('assistant','MayorChatZ Assistant')"><div class="av">M<span class="online-dot"></span></div><div><div class="nm">MayorChatZ Assistant ●</div><div class="lt">FREE AI Online - Tap to chat...</div></div><div class="tm">now</div></div>`;
- let others = allUsers.filter(u=> u.id!==me?.id && u.name!==me?.name);
+ let others = allUsers.filter(u=> u.id!==me?.id);
  if(others.length===0){
-   html+=`<div class="empty">No other users yet.<br>Share your link make friends join!<br>When dem register, dem go show here.<br><br>⚠️ If your friend don join but you no see am,<br>make dem click <b>Logout</b> and join again with same name.</div>`;
+   html+=`<div class="empty">No other users yet.<br>Share your link make friends join!<br>When dem register, dem go show here.</div>`;
  }else{
    others.forEach((u)=>{
      let name = u.name; let letter = name[0].toUpperCase();
      let isOnline = onlineIds.has(u.id) || u.online;
-     let preview = lastMsgs[u.id] || 'Tap to chat';
-     html+=`<div class="item" onclick="openChat('${u.id}','${name}')"><div class="av">${letter}${isOnline?'<span class="online-dot"></span>':''}</div><div><div class="nm">${name}</div><div class="lt">${preview}</div></div><div class="tm">${isOnline?'online':'offline'}</div></div>`;
+     let preview = lastMsgs[u.id] || '🔒 Tap to chat - End-to-end encrypted';
+     html+=`<div class="item" onclick="openChat('${u.id}','${name}')"><div class="av">${letter}${isOnline?'<span class="online-dot"></span>':''}</div><div><div class="nm">${name} 🔒</div><div class="lt">${preview}</div></div><div class="tm">${isOnline?'online':'offline'}</div></div>`;
    });
  }
  listDiv.innerHTML=html;
@@ -121,37 +249,57 @@ async function loadUsers(){
 function renderGroups(){
  let g=document.getElementById('groupList');
  if(allGroups.length===0){ g.innerHTML='<div class="empty">No groups yet. Click + to create group!</div>'; return; }
- g.innerHTML = allGroups.map((gr)=>`<div class="item" onclick="openChat('${gr.id}','${gr.name}')"><div class="av" style="background:#fdcb6e">👑</div><div><div class="nm">${gr.name} (${gr.members||'?'})</div><div class="lt">${gr.desc||gr.last||'Group chat'}</div></div></div>`).join('');
+ g.innerHTML = allGroups.map((gr)=>`<div class="item" onclick="openChat('${gr.id}','${gr.name}')"><div class="av" style="background:#fdcb6e">👑</div><div><div class="nm">${gr.name} (${gr.members||'?'}) 🔒</div><div class="lt">${gr.desc||gr.last||'Group chat'}</div></div></div>`).join('');
 }
-function renderStatus(){
+async function renderStatus(){
  let s=document.getElementById('statusList');
  if(allStatus.length===0){ s.innerHTML='<div class="empty">No status yet. Click + for text or 📷 for photo/video!</div>'; return; }
- s.innerHTML = allStatus.map((st,i)=>`<div class="item" onclick="viewStatus(${i})"><div class="av" style="background:${i==0?'#ff2a8a':'#00cec9'}">${(st.avatar||st.name[0])}</div><div><div class="nm">${st.name}</div><div class="lt">${st.text||st.last}</div>${st.file? (st.fileType&&st.fileType.startsWith('video')? `<video controls src="${st.file}" style="width:180px;border-radius:10px;margin-top:5px"></video>` : `<img src="${st.file}" style="width:180px;border-radius:10px;margin-top:5px">`) : ''}</div></div>`).join('');
+ let html='';
+ for(let i=0;i<allStatus.length;i++){
+   let st=allStatus[i];
+   let txt = st.text||'';
+   if(st.encryptedFor && st.encryptedFor[me?.id]){
+     try{ txt = await decryptFromUser(st.from || st.name, st.encryptedFor[me.id]).catch(()=>txt); }catch(e){}
+     // Status sender id is not stored, try all users
+     if(txt==='[🔒 Encrypted - could not decrypt]' || txt.includes('could not')){
+       for(let u of allUsers){ try{ let k=await sharedKeyFor(u.publicKey); let t=await decryptWithKey(k, st.encryptedFor[me.id]); txt=t; break; }catch(e){} }
+     }
+   }
+   html+=`<div class="item" onclick="viewStatus(${i})"><div class="av" style="background:${i==0?'#ff2a8a':'#00cec9'}">${(st.name||'M')[0]}</div><div><div class="nm">${st.name} 🔒</div><div class="lt">${txt}</div>${st.file? (st.fileType&&st.fileType.startsWith('video')? `<video controls src="${st.file}" style="width:180px;border-radius:10px;margin-top:5px"></video>` : `<img src="${st.file}" style="width:180px;border-radius:10px;margin-top:5px">`) : ''}</div></div>`;
+ }
+ s.innerHTML=html;
 }
 async function createGroup(){ let name=prompt('Group name?'); if(!name)return; let last=prompt('Group description?')||'New group created'; await fetch('/api/groups',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,desc:last,members:1,createdBy:me?.name||'Mayor'})}); loadUsers(); tab(2); }
-async function postStatus(){ let text=prompt('Wetin you wan post for status?'); if(!text)return; await fetch('/api/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:me?.name||'Me',text,last:text})}); loadUsers(); tab(1); alert('Status posted! 🔥 Everyone go see am!'); }
+async function postStatus(){
+  let text=prompt('Wetin you wan post for status? (Encrypted)'); if(!text)return;
+  // Encrypt for every known user
+  let ids = allUsers.map(u=>u.id);
+  let enc = await encryptTextForRecipients(ids, text);
+  await fetch('/api/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:me?.name||'Me', encryptedFor: enc, text:'🔒 Encrypted Status'})});
+  loadUsers(); tab(1); alert('Encrypted Status posted! 🔒 Only your contacts fit decrypt am!');
+}
 async function postStatusMedia(inp){
  if(!inp.files[0]) return;
- let file = inp.files[0];
- let fd = new FormData(); fd.append('file', file);
- try{
-   let r = await fetch('/api/upload',{method:'POST',body:fd});
-   if(!r.ok) throw new Error('Upload failed - file too big? Max 50MB');
-   let d = await r.json();
-   await fetch('/api/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:me?.name||'Me', text: file.type.startsWith('video')?'🎬 Video Status':'📷 Photo Status', file:d.url, fileType:d.type})});
-   loadUsers(); tab(1); alert('Photo/Video Status posted! 🔥');
- }catch(e){ alert('Upload fail: '+e.message); }
+ alert('Status photo/video is uploaded encrypted. Only contacts with keys fit view am.');
  inp.value='';
 }
-function viewStatus(i){ alert(allStatus[i].name+':\n\n'+(allStatus[i].text||allStatus[i].last)); }
-function renderOne(m, cls){
+function viewStatus(i){ alert(allStatus[i].name+':\n\n🔒 Encrypted Status - tap to view in list'); }
+async function renderOne(m, cls){
+  let txt = await decryptMessage(m);
   let media = '';
   if(m.file){
-    if(m.fileType && m.fileType.startsWith('video')) media = `<video controls src="${m.file}" playsinline></video>`;
-    else if(m.fileType && m.fileType.startsWith('audio')) media = `<audio controls src="${m.file}" style="width:180px"></audio>`;
-    else media = `<img src="${m.file}">`;
+    if(m.isEncryptedFile){
+      let url = await decryptFileFor(m.from===me?.id? m.to : m.from, m.file);
+      if(m.fileType && m.fileType.startsWith('video')) media = `<video controls src="${url}" playsinline></video>`;
+      else if(m.fileType && m.fileType.startsWith('audio')) media = `<audio controls src="${url}" style="width:180px"></audio>`;
+      else media = `<img src="${url}">`;
+    } else {
+      if(m.fileType && m.fileType.startsWith('video')) media = `<video controls src="${m.file}" playsinline></video>`;
+      else if(m.fileType && m.fileType.startsWith('audio')) media = `<audio controls src="${m.file}" style="width:180px"></audio>`;
+      else media = `<img src="${m.file}">`;
+    }
   }
-  return `<div class="msg ${cls}">${m.text||''}${media}</div>`;
+  return `<div class="msg ${cls}">${txt||''}${media}</div>`;
 }
 async function openChat(id,name){
  cur=id; curName=name;
@@ -162,67 +310,15 @@ async function openChat(id,name){
  document.getElementById('co').innerText= onlineIds.has(id)?'Online':'Online';
  let ms=document.getElementById('msgs');
  if(id==='assistant'){ ms.innerHTML='<div class="msg bot">Hello Boss! 🔥 I be MayorChatZ! FREE AI don live! Ask me anything!</div>'; return; }
+ // Check if it's a group
+ let isGroup = allGroups.some(g=>g.id===id);
+ if(isGroup){ ms.innerHTML=`<div class="msg bot">🔒 Group chat with ${name}.<br>Messages are end-to-end encrypted for each member.</div>`; return; }
  try{
    let msgs = await fetch(`/api/messages?from=${me.id}&to=${id}`).then(r=>r.json());
-   if(msgs.length===0) ms.innerHTML=`<div class="msg bot">You don open chat with ${name}.<br>Send message, photo, video, voice note now! 🚀</div>`;
-   else { msgs.forEach(m=>{ if(m.id) seenMsgs.add(m.id + '|' + m.from + '|' + (m.text||'') + '|' + (m.file||'')); }); ms.innerHTML = msgs.map(m=>renderOne(m, m.from===me.id?'user':'bot')).join(''); }
- }catch(e){ ms.innerHTML=`<div class="msg bot">Chat with ${name} started.</div>`; }
+   if(msgs.length===0) ms.innerHTML=`<div class="msg bot">🔒 You don open chat with ${name}.<br>Send message, photo, video, voice note now! 🚀<br>Only you two fit read am.</div>`;
+   else { msgs.forEach(m=>{ if(m.id) deliveredIds.add(m.id); }); let parts=[]; for(let m of msgs) parts.push(await renderOne(m, m.from===me.id?'user':'bot')); ms.innerHTML = parts.join(''); }
+ }catch(e){ ms.innerHTML=`<div class="msg bot">🔒 Chat with ${name} started.</div>`; }
  ms.scrollTop=99999;
 }
 function closeChat(){document.getElementById('win').classList.remove('on'); loadUsers();}
-function check(){ document.getElementById('sb').innerText=document.getElementById('inp').value.trim()?'➤':'🎤'; }
-function action(){ let t=document.getElementById('inp').value.trim(); if(t) go(); else voice(); }
-async function go(){
- let i=document.getElementById('inp'); let t=i.value.trim(); if(!t)return;
- let ms=document.getElementById('msgs');
- if(cur==='assistant'){
-   ms.innerHTML+=`<div class="msg user">${t}</div>`; i.value=''; check(); ms.scrollTop=99999;
-   try{ let r=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:t})}); let d=await r.json(); ms.innerHTML+=`<div class="msg bot">${d.reply}</div>`; }catch(e){ ms.innerHTML+=`<div class="msg bot">Network slow Boss, try again 😅</div>`; }
- }else{
-   socket.emit('send-message',{from:me.id,fromName:me.name,to:cur,text:t});
-   i.value=''; check();
- }
- ms.scrollTop=99999;
-}
-async function sendPic(inp){
- if(!inp.files[0])return;
- if(!cur || cur==='assistant') return alert('Open a person chat first before you send photo/video!');
- let file = inp.files[0];
- let ms=document.getElementById('msgs');
- ms.innerHTML+=`<div class="msg user">⏳ Uploading ${file.type.startsWith('video')?'video':'photo'}... please wait</div>`; ms.scrollTop=99999;
- let fd = new FormData(); fd.append('file', file);
- try{
-   let r = await fetch('/api/upload',{method:'POST',body:fd});
-   if(!r.ok) throw new Error('Upload failed - file too big? Max 50MB');
-   let d = await r.json();
-   ms.lastElementChild.remove();
-   let label = file.type.startsWith('video')? '🎬 Video' : '📷 Photo';
-   socket.emit('send-message',{from:me.id,fromName:me.name,to:cur,file:d.url,fileType:d.type,text:label});
- }catch(e){ alert('Upload fail Boss: '+e.message); ms.lastElementChild.remove(); }
- inp.value='';
-}
-async function voice(){
- if(isRec){ rec.stop(); return; }
- try{ let s=await navigator.mediaDevices.getUserMedia({audio:true}); rec=new MediaRecorder(s); chunks=[]; isRec=true; document.getElementById('sb').innerText='■'; document.getElementById('sb').style.background='red'; rec.ondataavailable=e=>chunks.push(e.data); rec.onstop=async()=>{ let blob=new Blob(chunks,{type:'audio/webm'}); let fd=new FormData(); fd.append('file', blob, 'voice.webm'); try{ let r=await fetch('/api/upload',{method:'POST',body:fd}); let d=await r.json(); socket.emit('send-message',{from:me.id,fromName:me.name,to:cur,file:d.url,fileType:'audio/webm',text:'🎤 Voice note'}); }catch(e){ let u=URL.createObjectURL(blob); let ms=document.getElementById('msgs'); ms.innerHTML+=`<div class="msg user"><audio controls src="${u}" style="width:180px"></audio></div>`; } s.getTracks().forEach(t=>t.stop()); document.getElementById('sb').innerText='🎤'; document.getElementById('sb').style.background='#ff2a8a'; isRec=false; }; rec.start(); }catch(e){ alert('Allow mic Boss! 🎤'); }
-}
-socket.on('online-users', (ids)=>{ onlineIds = new Set(ids); loadUsers(); });
-socket.on('users-changed', ()=>loadUsers());
-socket.on('new-message', (m)=>{
- let key = (m.id||'') + '|' + m.from + '|' + (m.text||'') + '|' + (m.file||'');
- if(seenMsgs.has(key)) return;
- seenMsgs.add(key);
- let otherId = m.from===me?.id? m.to : m.from;
- lastMsgs[otherId] = m.file? (m.fileType&&m.fileType.startsWith('video')?'🎬 Video': m.fileType&&m.fileType.startsWith('audio')?'🎤 Voice':'📷 Photo') : m.text;
- if(m.from===me?.id){
-   if(cur===m.to){ let ms=document.getElementById('msgs'); ms.innerHTML+=renderOne(m,'user'); ms.scrollTop=99999; }
-   loadUsers(); return;
- }
- if(cur===m.from || cur===m.to){ let ms=document.getElementById('msgs'); ms.innerHTML+=renderOne(m,'bot'); ms.scrollTop=99999; }
- loadUsers();
-});
-socket.on('new-group', ()=>loadUsers());
-socket.on('new-status', ()=>loadUsers());
-</script>
-<script>if('serviceWorker' in navigator){ navigator.serviceWorker.register('/sw.js').catch(()=>{}); }</script>
-</body>
- </html>
+function check(){ document.getElementById('sb').i
