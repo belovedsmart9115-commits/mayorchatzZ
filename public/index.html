@@ -4,207 +4,222 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MayorChatZ</title>
-<script src="/socket.io/socket.io.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;font-family:Arial,sans-serif}
-body{background:#0b141a;color:#fff;height:100vh;overflow:hidden}
-#login{position:fixed;inset:0;background:#0b141a;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:15px;z-index:99;padding:20px;text-align:center}
-#login h1{font-size:32px;color:#25d366}
-#login input{padding:13px;width:280px;max-width:90%;border-radius:10px;border:none;outline:none;font-size:16px}
-#login button{padding:13px 30px;background:#25d366;border:none;border-radius:10px;color:#fff;font-size:17px;font-weight:bold;cursor:pointer}
-#app{display:none;height:100vh}
-header{background:#202c33;padding:12px 15px;display:flex;justify-content:space-between;align-items:center}
-header b{color:#25d366;font-size:20px}
-header span{font-size:13px;color:#aaa}
-.tabs{display:flex;background:#202c33;border-top:1px solid #333}
-.tabs button{flex:1;padding:12px;border:none;background:transparent;color:#aaa;cursor:pointer;font-size:15px}
-.tabs button.active{color:#25d366;border-bottom:3px solid #25d366}
-.main{height:calc(100vh - 100px);overflow-y:auto;padding:10px;padding-bottom:90px}
-.card{background:#202c33;padding:12px;border-radius:12px;margin-bottom:10px;display:flex;align-items:center;gap:12px;cursor:pointer}
-.avatar{width:48px;height:48px;border-radius:50%;background:#25d366;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:bold;flex-shrink:0;overflow:hidden}
-.avatar img{width:100%;height:100%;object-fit:cover}
-.card small{color:#aaa;display:block}
-.dot{width:10px;height:10px;border-radius:50%;background:#555;display:inline-block}
-.dot.on{background:#25d366}
-#chatView{display:none;height:100vh;flex-direction:column;background:#0b141a}
-#chatHead{background:#202c33;padding:12px;display:flex;align-items:center;gap:10px}
-#chatHead button{background:none;border:none;color:#fff;font-size:22px;cursor:pointer}
-#msgs{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;background-image:url('https://i.imgur.com/8x8j8bP.png')}
-.msg{max-width:80%;padding:9px 12px;border-radius:12px;font-size:15px;white-space:pre-wrap;word-break:break-word}
-.msg.me{background:#005c4b;align-self:flex-end}
-.msg.other{background:#202c33;align-self:flex-start}
-.msg img,.msg video{max-width:100%;border-radius:10px;margin-top:5px}
-.msg small{font-size:11px;color:#aaa;display:block;margin-top:3px}
-#inputBar{display:flex;gap:8px;padding:10px;background:#202c33;align-items:center}
-#inputBar input[type=text]{flex:1;padding:12px;border-radius:20px;border:none;outline:none;background:#2a3942;color:#fff}
-#inputBar button{padding:11px 16px;border:none;border-radius:50%;background:#25d366;color:#fff;font-size:18px;cursor:pointer}
-#fileBtn{background:#2a3942!important}
-input[type=file]{display:none}
-.btn{width:100%;padding:12px;background:#25d366;border:none;border-radius:10px;color:#fff;font-weight:bold;cursor:pointer;margin-top:8px}
-input[type=text].full{width:100%;padding:12px;border-radius:10px;border:none;outline:none;background:#2a3942;color:#fff;margin-top:8px}
-.aiCard{border:1px solid #25d366}
+body{display:flex;height:100vh;background:#efeae2;color:#111;overflow:hidden}
+body.dark{background:#0b141a;color:#e9edef}
+#sidebar{width:300px;background:#fff;border-right:1px solid #ddd;display:flex;flex-direction:column}
+body.dark #sidebar{background:#111b21;border-color:#222}
+#sideHead{padding:15px;background:#075E54;color:#fff;display:flex;justify-content:space-between;align-items:center}
+body.dark #sideHead{background:#202c33}
+#sideHead h2{font-size:18px}
+#onlineCount{font-size:12px;color:#25D366;margin-top:2px}
+#darkBtn{background:none;border:none;font-size:20px;cursor:pointer}
+#myNameTag{padding:10px 15px;font-weight:bold;border-bottom:1px solid #eee;font-size:14px}
+body.dark #myNameTag{border-color:#222}
+.chatItem{padding:13px 15px;cursor:pointer;border-bottom:1px solid #f0f0f0;display:flex;gap:10px;align-items:center}
+body.dark.chatItem{border-color:#222}
+.chatItem:hover,.chatItem.active{background:#e9edef}
+body.dark.chatItem:hover,body.dark.chatItem.active{background:#2a3942}
+.avatar{width:40px;height:40px;border-radius:50%;background:#25D366;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:bold;flex-shrink:0}
+.chatItem b{font-size:15px}
+.chatItem small{color:#888;font-size:12px}
+#chatArea{flex:1;display:flex;flex-direction:column;background:#ece5dd}
+body.dark #chatArea{background:#0b141a}
+#chatHead{padding:12px 16px;background:#ededed;display:flex;align-items:center;gap:10px;border-bottom:1px solid #ddd}
+body.dark #chatHead{background:#202c33;border-color:#222}
+#typing{font-size:12px;color:#25D366;height:16px;padding:2px 16px}
+#messages{flex:1;overflow-y:auto;padding:15px;display:flex;flex-direction:column;gap:8px}
+.msg{max-width:70%;padding:8px 10px;border-radius:8px;background:#fff;align-self:flex-start;box-shadow:0 1px 1px rgba(0,0,0,.1);word-wrap:break-word}
+body.dark.msg{background:#233138;color:#e9edef}
+.msg.me{align-self:flex-end;background:#d9fdd3}
+body.dark.msg.me{background:#005c4b}
+.msg small{display:block;font-size:10px;color:#888;text-align:right;margin-top:4px}
+.msg img,.msg video{max-width:100%;border-radius:8px;margin-top:5px}
+#inputArea{display:flex;gap:8px;padding:10px;background:#f0f2f5;align-items:center}
+body.dark #inputArea{background:#202c33}
+#msgInput{flex:1;padding:11px 14px;border:none;border-radius:20px;outline:none;font-size:15px}
+body.dark #msgInput{background:#2a3942;color:#fff}
+#inputArea button{border:none;cursor:pointer;padding:10px 12px;border-radius:50%;background:#25D366;color:#fff;font-size:16px}
+#fileBtn{background:#fff!important;color:#555!important}
+#login{position:fixed;inset:0;background:#075E54;display:flex;align-items:center;justify-content:center;z-index:100}
+#loginBox{background:#fff;padding:30px;border-radius:12px;text-align:center;width:90%;max-width:350px}
+#loginBox h1{color:#075E54;margin-bottom:10px}
+#loginBox input{width:100%;padding:12px;margin:12px 0;border:1px solid #ddd;border-radius:8px;font-size:16px}
+#loginBox button{width:100%;padding:12px;background:#25D366;color:#fff;border:none;border-radius:8px;font-size:16px;cursor:pointer}
+#error{color:red;font-size:13px;margin-top:8px}
+@media(max-width:700px){#sidebar{width:100px}#sidebar.chatName{display:none}#sideHead h2{font-size:14px}}
 </style>
 </head>
 <body>
 
 <div id="login">
-<h1>💬 MayorChatZ</h1>
-<p>Chat, Groups, Status & Free AI</p>
-<input id="nameInput" placeholder="Enter your name e.g. Beloved">
-<button onclick="login()">Enter Chat →</button>
-<p style="font-size:12px;color:#888">Your name go show to others. No password needed.</p>
+  <div id="loginBox">
+    <h1>MayorChatZ 💬</h1>
+    <p>Enter your name to continue</p>
+    <input id="nameInput" placeholder="Your name...">
+    <button onclick="doLogin()">Enter Chat</button>
+    <div id="error"></div>
+  </div>
 </div>
 
-<div id="app">
-<header><div><b>MayorChatZ</b><br><span id="myNameShow"></span></div><span id="onlineCount">● Online</span></header>
-<div class="tabs">
-<button id="tabChats" class="active" onclick="showTab('chats')">Chats</button>
-<button id="tabGroups" onclick="showTab('groups')">Groups</button>
-<button id="tabStatus" onclick="showTab('status')">Status</button>
-</div>
-<div class="main" id="main"></div>
-</div>
-
-<div id="chatView">
-<div id="chatHead"><button onclick="closeChat()">←</button><div class="avatar" id="chatAvatar">?</div><div><b id="chatName"></b><br><span id="chatStatus" style="font-size:12px;color:#25d366">Online</span></div></div>
-<div id="msgs"></div>
-<div id="inputBar">
-<label id="fileBtn" style="padding:11px;border-radius:50%;background:#2a3942;cursor:pointer">📎<input type="file" id="fileInput" accept="image/*,video/*,.pdf,.doc,.docx,.mp3,.mp4"></label>
-<input type="text" id="msgInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendMsg()">
-<button onclick="sendMsg()">➤</button>
-</div>
+<div id="sidebar">
+  <div id="sideHead">
+    <div><h2>MayorChatZ</h2><div id="onlineCount">0 online</div></div>
+    <button id="darkBtn" onclick="toggleDark()">🌙</button>
+  </div>
+  <div id="myNameTag"></div>
+  <div id="chatList"></div>
+  <div style="margin-top:auto;padding:12px"><button onclick="logout()" style="width:100%;padding:10px;border:none;background:#ff4444;color:#fff;border-radius:8px;cursor:pointer">Logout</button></div>
 </div>
 
+<div id="chatArea">
+  <div id="chatHead"><div class="avatar" id="headAvatar">M</div><div><b id="chatTitle">Select a chat</b><div style="font-size:12px;color:#25D366">Tap a chat to start</div></div></div>
+  <div id="typing"></div>
+  <div id="messages"></div>
+  <div id="inputArea">
+    <label for="fileInput" id="fileBtn" style="padding:10px 12px;border-radius:50%;background:#fff;cursor:pointer">📎</label>
+    <input type="file" id="fileInput" accept="image/*,video/*" style="display:none" onchange="sendFile(this)">
+    <input id="msgInput" placeholder="Type a message" oninput="sendTyping()" onkeydown="if(event.key==='Enter')sendMessage()">
+    <button id="voiceBtn" onclick="toggleVoice()">🎤</button>
+    <button onclick="sendMessage()">➤</button>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
 <script>
-let myId=localStorage.getItem('mz_id')||('u'+Date.now()+Math.random().toString(36).slice(2,6));
-localStorage.setItem('mz_id',myId);
-let myName=localStorage.getItem('mz_name')||'';
-let socket=io();
-let currentChat=null, currentChatName='', allUsers=[], allGroups=[], currentMessages=[];
-let myPublicKey='key_'+myId;
+const socket = io();
+let myName = localStorage.getItem('mayor_name') || '';
+let currentChat = 'MayorChatZ Assistant';
+let allMessages = [];
+let allUsers = [];
 
-async function login(){
-  let n=document.getElementById('nameInput').value.trim();
-  if(!n) return alert('Enter your name');
-  myName=n; localStorage.setItem('mz_name',n);
-  let r=await fetch('/api/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:n,id:myId,publicKey:myPublicKey})});
-  let u=await r.json(); myId=u.id; localStorage.setItem('mz_id',myId);
+// Dark mode - preserved
+if(localStorage.getItem('mayor_dark')==='1') document.body.classList.add('dark');
+function toggleDark(){
+  document.body.classList.toggle('dark');
+  localStorage.setItem('mayor_dark', document.body.classList.contains('dark')?'1':'0');
+  document.getElementById('darkBtn').textContent = document.body.classList.contains('dark')?'☀️':'🌙';
+}
+if(document.body.classList.contains('dark')) document.getElementById('darkBtn').textContent='☀️';
+
+function doLogin(){
+  let n = document.getElementById('nameInput').value.trim();
+  if(!n) return document.getElementById('error').textContent='Enter your name';
+  socket.emit('join', n);
+}
+socket.on('joinError', m=> document.getElementById('error').textContent=m);
+socket.on('joinSuccess', name=>{
+  myName=name;
+  localStorage.setItem('mayor_name', name);
   document.getElementById('login').style.display='none';
-  document.getElementById('app').style.display='block';
-  document.getElementById('myNameShow').textContent='Hi, '+myName;
-  socket.emit('join',myId,myName);
-  showTab('chats');
-}
-if(myName){ document.getElementById('nameInput').value=myName; }
+  document.getElementById('myNameTag').textContent='You: '+myName;
+  renderChatList();
+  renderMessages();
+});
+socket.on('userList', users=>{ allUsers=users; renderChatList(); });
+socket.on('onlineUsers', users=>{ document.getElementById('onlineCount').textContent = users.length + ' online'; allUsers=users; renderChatList(); });
 
-function showTab(t){
-  document.querySelectorAll('.tabs button').forEach(b=>b.classList.remove('active'));
-  document.getElementById('tab'+t.charAt(0).toUpperCase()+t.slice(1)).classList.add('active');
-  if(t==='chats') renderChats();
-  if(t==='groups') renderGroups();
-  if(t==='status') renderStatus();
+function logout(){ localStorage.removeItem('mayor_name'); location.reload(); }
+
+function renderChatList(){
+  let list = document.getElementById('chatList');
+  let chats = ['MayorChatZ Assistant','General Group',...allUsers.filter(u=>u!==myName)];
+  list.innerHTML = chats.map(c=>{
+    let initial = c==='MayorChatZ Assistant'? '🤖' : c[0].toUpperCase();
+    return `<div class="chatItem ${c===currentChat?'active':''}" onclick="openChat('${c.replace(/'/g,"\\'")}')"><div class="avatar">${initial}</div><div class="chatName"><b>${c}</b><br><small>${c==='MayorChatZ Assistant'?'Ask anything':'Tap to chat'}</small></div></div>`;
+  }).join('');
+}
+function openChat(name){
+  currentChat=name;
+  document.getElementById('chatTitle').textContent=name;
+  document.getElementById('headAvatar').textContent = name==='MayorChatZ Assistant'?'🤖':name[0].toUpperCase();
+  document.getElementById('typing').textContent='';
+  renderChatList(); renderMessages();
 }
 
-async function renderChats(){
-  let r=await fetch('/api/users'); allUsers=await r.json();
-  let html=`<div class="card aiCard" onclick="openAI()"><div class="avatar">🤖</div><div><b>MayorChatZ Assistant</b><small>Free AI - Ask anything, Maths, Science...</small></div><span class="dot on"></span></div>`;
-  // HIDE OWN NAME - filter out myId
-  html+=allUsers.filter(u=>u.id!==myId).map(u=>`
-    <div class="card" onclick="openChat('${u.id}','${u.name.replace(/'/g,'')}')">
-      <div class="avatar">${u.name.charAt(0).toUpperCase()}</div>
-      <div style="flex:1"><b>${u.name}</b><small>${u.online?'Online':'Offline'} • Tap to chat</small></div>
-      <span class="dot ${u.online?'on':''}"></span>
-    </div>`).join('');
-  if(allUsers.filter(u=>u.id!==myId).length===0) html+='<p style="text-align:center;color:#aaa;margin-top:20px">No other users yet.<br>Share the link make others join!</p>';
-  document.getElementById('main').innerHTML=html;
+function isRelevant(m){
+  if(currentChat==='General Group') return m.to==='General Group' || m.to==='General';
+  if(currentChat==='MayorChatZ Assistant') return (m.from===myName && m.to==='MayorChatZ Assistant') || (m.from==='MayorChatZ Assistant' && m.to===myName);
+  return (m.from===myName && m.to===currentChat) || (m.from===currentChat && m.to===myName);
 }
-async function renderGroups(){
-  let r=await fetch('/api/groups'); allGroups=await r.json();
-  let html=`<input class="full" id="gName" placeholder="New group name"><input class="full" id="gDesc" placeholder="Group description (optional)"><button class="btn" onclick="createGroup()">+ Create Group</button><br><br>`;
-  html+=allGroups.map(g=>`<div class="card" onclick="openChat('${g.id}','${g.name.replace(/'/g,'')}')"><div class="avatar">👥</div><div style="flex:1"><b>${g.name}</b><small>${g.desc||''}</small></div></div>`).join('');
-  document.getElementById('main').innerHTML=html;
-}
-async function createGroup(){
-  let name=document.getElementById('gName').value.trim(); if(!name) return alert('Enter group name');
-  await fetch('/api/groups',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,desc:document.getElementById('gDesc').value,createdBy:myName})});
-  renderGroups();
-}
-async function renderStatus(){
-  let r=await fetch('/api/status'); let list=await r.json();
-  let html=`<input class="full" id="sText" placeholder="Write status..."><button class="btn" onclick="postStatus()">Post Status</button><br><br>`;
-  html+=list.map(s=>{
-    let media='';
-    if(s.file){ if(s.fileType&&s.fileType.startsWith('image')) media=`<img src="${s.file}" style="width:100%;border-radius:10px;margin-top:8px">`; else if(s.fileType&&s.fileType.startsWith('video')) media=`<video src="${s.file}" controls style="width:100%;border-radius:10px;margin-top:8px"></video>`; }
-    return `<div class="card" style="display:block"><b>${s.name}</b><small>${new Date(s.createdAt).toLocaleString()}</small><p style="margin-top:6px">${s.text||''}</p>${media}</div>`;
-  }).join('');
-  if(list.length===0) html+='<p style="text-align:center;color:#aaa">No status yet. Post one!</p>';
-  document.getElementById('main').innerHTML=html;
-}
-async function postStatus(){
-  let text=document.getElementById('sText').value.trim();
-  await fetch('/api/status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:myName,text})});
-  renderStatus();
-}
-function openAI(){ openChat('AI','MayorChatZ Assistant'); }
-function openChat(id,name){
-  currentChat=id; currentChatName=name;
-  document.getElementById('app').style.display='none';
-  document.getElementById('chatView').style.display='flex';
-  document.getElementById('chatName').textContent=name;
-  document.getElementById('chatAvatar').textContent=name.charAt(0).toUpperCase();
-  loadMessages();
-}
-function closeChat(){ document.getElementById('chatView').style.display='none'; document.getElementById('app').style.display='block'; currentChat=null; showTab('chats'); }
-async function loadMessages(){
-  if(!currentChat) return;
-  if(currentChat==='AI'){
-    document.getElementById('msgs').innerHTML=`<div class="msg other">Hello Boss! 👋 I be <b>MayorChatZ Assistant</b>.<br><br>Ask me anything:<br>• What is photosynthesis?<br>• 45 + 67 =?<br>• Who is Wole Soyinka?<br><br>Type your question below.</div>`;
-    return;
-  }
-  let r=await fetch(`/api/messages?from=${myId}&to=${currentChat}`); currentMessages=await r.json();
-  renderMsgs();
-}
-function renderMsgs(){
-  let box=document.getElementById('msgs');
-  box.innerHTML=currentMessages.map(m=>{
-    let media='';
-    if(m.file){ if(m.fileType&&m.fileType.startsWith('image')) media=`<img src="${m.file}">`; else if(m.fileType&&m.fileType.startsWith('video')) media=`<video src="${m.file}" controls></video>`; else media=`<a href="${m.file}" target="_blank" style="color:#25d366">📎 Download File</a>`; }
-    return `<div class="msg ${m.from===myId?'me':'other'}"><b>${m.from===myId?'You':(m.fromName||'')}</b><br>${m.text||''}${media}<small>${new Date(m.createdAt).toLocaleTimeString()}</small></div>`;
-  }).join('');
+
+function renderMessages(){
+  let box=document.getElementById('messages');
+  box.innerHTML='';
+  allMessages.filter(isRelevant).forEach(m=>{
+    let div=document.createElement('div');
+    div.className='msg'+(m.from===myName?' me':'');
+    let content='';
+    if(m.type==='image') content=`<img src="${m.data}">`;
+    else if(m.type==='video') content=`<video controls src="${m.data}"></video>`;
+    else if(m.type==='voice') content=`<audio controls src="${m.data}" style="width:200px"></audio>`;
+    else content=`${(m.text||'').replace(/\n/g,'<br>')}`;
+    div.innerHTML=`<b style="font-size:12px;color:#075E54">${m.from}</b><div>${content}</div><small>${m.time||''}</small>`;
+    box.appendChild(div);
+  });
   box.scrollTop=box.scrollHeight;
 }
-async function sendMsg(){
-  let inp=document.getElementById('msgInput'); let text=inp.value.trim();
-  let fileInput=document.getElementById('fileInput');
-  let fileUrl=null, fileType=null;
-  if(fileInput.files[0]){
-    let fd=new FormData(); fd.append('file',fileInput.files[0]);
-    let r=await fetch('/api/upload',{method:'POST',body:fd}); let d=await r.json(); fileUrl=d.url; fileType=d.fileType; fileInput.value='';
-  }
-  if(!text &&!fileUrl) return;
-  if(currentChat==='AI'){
-    let box=document.getElementById('msgs');
-    box.innerHTML+=`<div class="msg me">${text}<small>Now</small></div>`;
-    inp.value=''; box.scrollTop=box.scrollHeight;
-    box.innerHTML+=`<div class="msg other" id="typing">Typing...</div>`; box.scrollTop=box.scrollHeight;
-    let r=await fetch('/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:text})});
-    let d=await r.json();
-    document.getElementById('typing').remove();
-    box.innerHTML+=`<div class="msg other">${d.reply.replace(/\n/g,'<br>')}<small>Now</small></div>`; box.scrollTop=box.scrollHeight;
-    return;
-  }
-  socket.emit('send-message',{from:myId,fromName:myName,to:currentChat,text,file:fileUrl,fileType});
+
+function sendMessage(){
+  let inp=document.getElementById('msgInput');
+  let text=inp.value.trim();
+  if(!text) return;
+  socket.emit('message',{from:myName,to:currentChat,text:text,type:'text'});
   inp.value='';
 }
-socket.on('new-message',(m)=>{
-  if(currentChat && ((m.from===currentChat&&m.to===myId)||(m.from===myId&&m.to===currentChat))){
-    currentMessages.push(m); renderMsgs();
+async function sendFile(el){
+  let file=el.files[0]; if(!file) return;
+  let fd=new FormData(); fd.append('file',file);
+  let res=await fetch('/upload',{method:'POST',body:fd});
+  let d=await res.json();
+  socket.emit('message',{from:myName,to:currentChat,text:'',type:d.type,data:d.url});
+  el.value='';
+}
+socket.on('message', m=>{ allMessages.push(m); renderMessages(); });
+
+// Typing
+let typingTimeout;
+function sendTyping(){ socket.emit('typing',{from:myName,to:currentChat}); }
+socket.on('typing', d=>{
+  if(d.from===currentChat){
+    document.getElementById('typing').textContent=d.from+' is typing...';
+    clearTimeout(typingTimeout);
+    typingTimeout=setTimeout(()=>document.getElementById('typing').textContent='',2000);
   }
 });
-socket.on('users-changed',()=>{ if(currentChat===null) showTab('chats'); });
-socket.on('new-group',()=>{ showTab('groups'); });
-socket.on('new-status',()=>{});
-socket.on('online-users',(ids)=>{ document.getElementById('onlineCount').textContent='● '+ids.length+' Online'; });
+
+// Voice Note
+let mediaRecorder, audioChunks=[], isRecording=false;
+async function toggleVoice(){
+  if(!isRecording){
+    try{
+      let stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      mediaRecorder=new MediaRecorder(stream); audioChunks=[];
+      mediaRecorder.ondataavailable=e=>audioChunks.push(e.data);
+      mediaRecorder.onstop=()=>{
+        let blob=new Blob(audioChunks,{type:'audio/webm'});
+        let reader=new FileReader();
+        reader.onload=()=>{ socket.emit('message',{from:myName,to:currentChat,text:'',type:'voice',data:reader.result}); };
+        reader.readAsDataURL(blob);
+      };
+      mediaRecorder.start(); isRecording=true;
+      document.getElementById('voiceBtn').textContent='⏹️';
+      document.getElementById('voiceBtn').style.background='red';
+    }catch(e){ alert('Allow microphone to send voice note'); }
+  } else {
+    mediaRecorder.stop(); isRecording=false;
+    document.getElementById('voiceBtn').textContent='🎤';
+    document.getElementById('voiceBtn').style.background='#25D366';
+  }
+}
+
+// Auto-login if name saved
+if(myName){
+  document.getElementById('nameInput').value=myName;
+  socket.emit('join', myName);
+}
+renderChatList();
 </script>
 </body>
 </html>
