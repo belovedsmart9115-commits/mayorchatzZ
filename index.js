@@ -22,6 +22,7 @@ try {
     users = d.users || []; groups = d.groups || []; statusList = d.statusList || []; messages = d.messages || [];
   }
 } catch (e) {}
+// MERGE DUPLICATES BY NAME - Fix "I see my own name" bug
 let seenNames = {};
 users = users.filter(u => {
   let key = (u.name || '').toLowerCase().trim();
@@ -44,6 +45,7 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
 app.post('/api/register', (req, res) => {
   let { name, id, publicKey } = req.body;
   if (!name ||!id) return res.status(400).json({ error: 'Missing' });
+  // If same name already exists, REUSE am - no duplicate
   let byName = users.find(x => (x.name || '').toLowerCase().trim() === name.toLowerCase().trim());
   if (byName) { byName.online = true; byName.publicKey = publicKey || byName.publicKey; save(); io.emit('users-changed'); return res.json(byName); }
   let u = users.find(x => x.id === id);
