@@ -6,8 +6,8 @@
 <title>MayorChatZ</title>
 <meta name="theme-color" content="#ff2e88">
 <link rel="manifest" href="/manifest.json">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23ff2e88'/><text x='50' y='68' font-size='55' text-anchor='middle' fill='white'>M</text></svg>">
-<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23ff2e88'/><text x='50' y='68' font-size='55' text-anchor='middle' fill='white'>M</text></svg>">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon.svg">
 <script src="/socket.io/socket.io.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',Arial}
@@ -49,20 +49,22 @@ header h2{font-size:20px;line-height:1.1}header h2 span{color:#ff6fb0}
 #sendBtn{background:linear-gradient(135deg,#ff2e88,#4b0f7a);color:#fff}
 #statusPanel{display:none;flex:1;overflow-y:auto;background:#fff;color:#222;padding:14px}
 .status-card{background:linear-gradient(135deg,#ffe0ee,#e9d5ff);padding:12px;border-radius:16px;margin-bottom:12px;border-left:5px solid #ff2e88;position:relative}
-.status-card img,.status-card video{width:100%;border-radius:12px;margin-top:8px;max-height:320px;object-fit:cover}
+.status-card img{width:100%;border-radius:12px;margin-top:8px;height:auto;display:block}
+.status-card video{width:100%;height:auto;max-height:none;object-fit:contain;background:#000;border-radius:12px;margin-top:8px;display:block}
 #statusForm{background:#fff3f8;border:2px dashed #ff2e88;border-radius:16px;padding:12px;margin-bottom:14px;display:flex;flex-direction:column;gap:8px}
 #statusForm input[type=text]{padding:11px;border:2px solid #ff2e88;border-radius:12px;outline:none;font-size:15px}
 .status-row{display:flex;gap:8px}
 .status-row label{flex:1;text-align:center;background:#2a0a4a;color:#fff;padding:10px;border-radius:12px;cursor:pointer;font-size:13px;font-weight:700}
 .status-row button{flex:1;background:#ff2e88;color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer}
-#preview img,#preview video{width:100%;border-radius:12px;max-height:250px;object-fit:cover}
+#preview img{width:100%;border-radius:12px;height:auto}
+#preview video{width:100%;height:auto;object-fit:contain;background:#000;border-radius:12px}
 .del-btn{position:absolute;top:8px;right:8px;border:none;background:#ff2e88;color:#fff;border-radius:50%;width:28px;height:28px;cursor:pointer}
-body.dark #chatArea{background:#1a0a2e}body.dark #sidebar{background:#220b3d;color:#fff}body.dark #chatHeader{background:#220b3d;color:#fff}body.dark.msg.other{background:#2a0a4a;color:#fff}body.dark #inputBar{background:#220b3d}body.dark #statusPanel{background:#220b3d;color:#fff}
+body.dark #chatArea{background:#1a0a2e}body.dark #sidebar{background:#220b3d;color:#fff}body.dark #chatHeader{background:#220b3d;color:#fff}body.dark #inputBar{background:#220b3d}body.dark #statusPanel{background:#220b3d;color:#fff}
 @media(max-width:700px){#sidebar{width:100%;display:block}#chatArea{display:none;width:100%}body.in-chat #sidebar{display:none}body.in-chat #chatArea{display:flex}body.in-status #sidebar{display:none}body.in-status #chatArea{display:none}body.in-status #statusPanel{display:block}}
 </style>
 </head>
 <body>
-<div id="login"><div class="login-box"><h1>MayorChatZ 💖</h1><p>Hot Pink x Dark Purple Chat</p><input id="nameInput" placeholder="Enter your name..."><button onclick="joinChat()">Enter Chat 🚀</button><p style="font-size:12px;color:#888;margin-top:10px">Status • Group Chat • Assistant • Voice • Photos</p></div></div>
+<div id="login"><div class="login-box"><h1>MayorChatZ 💖</h1><p>Hot Pink x Dark Purple Chat</p><input id="nameInput" placeholder="Enter your name..."><button onclick="joinChat()">Enter Chat 🚀</button></div></div>
 <div id="app">
 <header><div><h2>MayorChatZ <span>💖</span></h2><div id="online">● 1 online</div></div><div class="top-btns"><button class="btn-pink" onclick="showTab('chats')">💬 Chats</button><button class="btn-pink" onclick="showTab('status')">📸 Status</button><button class="btn-dark" onclick="toggleDark()">🌙</button></div></header>
 <div id="tabs"><button id="tabChats" class="active" onclick="showTab('chats')">Chats</button><button id="tabStatus" onclick="showTab('status')">Status</button></div>
@@ -82,17 +84,22 @@ body.dark #chatArea{background:#1a0a2e}body.dark #sidebar{background:#220b3d;col
 </div>
 <script>
 const socket=io();
-let myName='', currentChat='MayorChatZ Assistant', users=[], statuses=JSON.parse(localStorage.getItem('mayor_status')||'[]'), pendingFile=null;
+let myName='', currentChat='MayorChatZ Assistant', users=[], statuses=JSON.parse(localStorage.getItem('mayor_status')||'[]'), pendingFile=null, migrated=false;
 function joinChat(){let n=document.getElementById('nameInput').value.trim(); if(!n) return alert('Enter your name first'); myName=n; socket.emit('join',n);}
 socket.on('joinError',m=>alert(m));
 socket.on('joinSuccess',()=>{document.getElementById('login').style.display='none'; document.getElementById('app').style.display='flex'; renderSidebar(); renderStatuses();});
 socket.on('onlineUsers',l=>{document.getElementById('online').innerText='● '+l.length+' online'; users=l; renderSidebar();});
 socket.on('userList',l=>{users=l; renderSidebar();});
 socket.on('typing',d=>{if(d.from!==myName) document.getElementById('typing').innerText=d.from+' is typing...'; setTimeout(()=>document.getElementById('typing').innerText='',2000);});
+// SERVER STATUS - receive all, receive new one, migrate old local one once
+socket.on('statusList',list=>{ statuses=list; localStorage.setItem('mayor_status',JSON.stringify(statuses)); renderStatuses(); });
+socket.on('statusNew',s=>{ if(!statuses.find(x=>x.time===s.time && x.name===s.name)){ statuses.unshift(s); statuses=statuses.slice(0,100); localStorage.setItem('mayor_status',JSON.stringify(statuses)); renderStatuses(); } });
+function migrateOldStatuses(){ if(migrated) return; migrated=true; let old=JSON.parse(localStorage.getItem('mayor_status')||'[]'); if(old.length){ old.forEach(s=>{ if(!s.media ||!s.media.startsWith('data:')) socket.emit('newStatus',s); }); } }
+socket.on('joinSuccess',()=>{ setTimeout(migrateOldStatuses,500); });
 function renderSidebar(){let html=`<div class="chat-item" onclick="openChat('MayorChatZ Assistant')"><div class="avatar">🤖</div><div><b>MayorChatZ Assistant</b><br><small>Ask anything • Tap to chat</small></div></div><div class="chat-item" onclick="openChat('General Group')"><div class="avatar" style="background:#4b0f7a">👥</div><div><b>General Group</b><br><small>Group Chat • Everyone</small></div></div>`; users.filter(u=>u!==myName && u!=='MayorChatZ Assistant').forEach(u=>{html+=`<div class="chat-item" onclick="openChat('${u}')"><div class="avatar">${u[0].toUpperCase()}</div><div><b>${u}</b><br><small>Tap to chat</small></div></div>`;}); document.getElementById('sidebar').innerHTML=html;}
 function openChat(name){currentChat=name; document.getElementById('chatName').innerText=name; document.getElementById('chatAvatar').innerText=name[0]; document.getElementById('messages').innerHTML=''; document.body.classList.add('in-chat'); document.body.classList.remove('in-status'); document.getElementById('tabChats').classList.add('active'); document.getElementById('tabStatus').classList.remove('active'); document.getElementById('statusPanel').style.display='none'; if(name==='General Group') addMsg({from:'MayorChatZ Assistant',text:'Welcome to General Group! 🎉 Everybody fit chat here.',type:'text'}); setTimeout(()=>document.getElementById('msgInput').focus(),100);}
 function backToList(){document.body.classList.remove('in-chat');}
-function addMsg(m){if(m.to && m.to!=='General Group' && m.to!==myName && m.from!==myName && m.from!=='MayorChatZ Assistant') return; if(currentChat==='General Group' && m.to!=='General Group' && m.from!=='MayorChatZ Assistant' && m.from!==myName) return; if(currentChat!=='General Group' && currentChat!=='MayorChatZ Assistant' && m.from!==currentChat && m.from!==myName) return; let div=document.createElement('div'); let cls=m.from===myName?'me':(m.from==='MayorChatZ Assistant'?'assistant':'other'); let content=m.text||''; if(m.type==='image') content=`<img src="${m.url}">`; if(m.type==='video') content=`<video src="${m.url}" controls></video>`; if(m.type==='audio') content=`<audio src="${m.url}" controls></audio>`; div.className='msg '+cls; div.innerHTML=`<b>${m.from}</b>${content}`; document.getElementById('messages').appendChild(div); document.getElementById('messages').scrollTop=1e9;}
+function addMsg(m){if(m.to && m.to!=='General Group' && m.to!==myName && m.from!==myName && m.from!=='MayorChatZ Assistant') return; if(currentChat==='General Group' && m.to!=='General Group' && m.from!=='MayorChatZ Assistant' && m.from!==myName) return; if(currentChat!=='General Group' && currentChat!=='MayorChatZ Assistant' && m.from!==currentChat && m.from!==myName) return; let div=document.createElement('div'); let cls=m.from===myName?'me':(m.from==='MayorChatZ Assistant'?'assistant':'other'); let content=m.text||''; if(m.type==='image') content=`<img src="${m.url}">`; if(m.type==='video') content=`<video src="${m.url}" controls playsinline></video>`; if(m.type==='audio') content=`<audio src="${m.url}" controls></audio>`; div.className='msg '+cls; div.innerHTML=`<b>${m.from}</b>${content}`; document.getElementById('messages').appendChild(div); document.getElementById('messages').scrollTop=1e9;}
 socket.on('message',addMsg);
 function sendMsg(){let inp=document.getElementById('msgInput'); let t=inp.value.trim(); if(!t) return; socket.emit('message',{from:myName,to:currentChat,text:t,type:'text'}); inp.value=''; inp.focus();}
 document.getElementById('msgInput').addEventListener('input',()=>socket.emit('typing',{from:myName}));
@@ -100,7 +107,7 @@ async function uploadFile(el){let f=el.files[0]; if(!f) return; let fd=new FormD
 let mediaRecorder=null,audioChunks=[];
 async function startVoice(){try{if(mediaRecorder && mediaRecorder.state==='recording'){mediaRecorder.stop(); return;} let s=await navigator.mediaDevices.getUserMedia({audio:true}); mediaRecorder=new MediaRecorder(s); audioChunks=[]; mediaRecorder.ondataavailable=e=>audioChunks.push(e.data); mediaRecorder.onstop=async()=>{let b=new Blob(audioChunks,{type:'audio/webm'}); let fd=new FormData(); fd.append('file',new File([b],'voice.webm',{type:'audio/webm'})); let r=await fetch('/upload',{method:'POST',body:fd}); let d=await r.json(); socket.emit('message',{from:myName,to:currentChat,url:d.url,type:'audio',text:''});}; mediaRecorder.start(); alert('Recording... Tap 🎤 again to send');}catch(e){alert('Mic no work for this browser');}}
 function showTab(t){document.getElementById('tabChats').classList.toggle('active',t==='chats'); document.getElementById('tabStatus').classList.toggle('active',t==='status'); if(t==='status'){document.body.classList.add('in-status'); document.body.classList.remove('in-chat'); document.getElementById('statusPanel').style.display='block'; renderStatuses();} else{document.body.classList.remove('in-status'); document.body.classList.remove('in-chat'); document.getElementById('statusPanel').style.display='none';}}
-function previewStatus(el){let f=el.files[0]; if(!f) return; pendingFile=f; let url=URL.createObjectURL(f); document.getElementById('preview').innerHTML=f.type.startsWith('video')?`<video src="${url}" controls></video>`:`<img src="${url}">`; document.getElementById('statusHint').innerText='Selected: '+f.name;}
+function previewStatus(el){let f=el.files[0]; if(!f) return; pendingFile=f; let url=URL.createObjectURL(f); document.getElementById('preview').innerHTML=f.type.startsWith('video')?`<video src="${url}" controls playsinline></video>`:`<img src="${url}">`; document.getElementById('statusHint').innerText='Selected: '+f.name;}
 async function postStatus(){
   let v=document.getElementById('statusInput').value.trim();
   if(!v &&!pendingFile) return alert('Type something or add photo/video');
@@ -108,20 +115,18 @@ async function postStatus(){
   let media='', mediaType='';
   try{
     if(pendingFile){ let fd=new FormData(); fd.append('file',pendingFile); let r=await fetch('/upload',{method:'POST',body:fd}); let d=await r.json(); media=d.url; mediaType=d.type; }
-    statuses.unshift({name:myName,text:v,media:media,mediaType:mediaType,time:new Date().toLocaleString()});
-    statuses=statuses.slice(0,50);
-    localStorage.setItem('mayor_status',JSON.stringify(statuses));
+    let newStatus={name:myName,text:v,media:media,mediaType:mediaType,time:new Date().toLocaleString()};
+    socket.emit('newStatus', newStatus);
     document.getElementById('statusInput').value=''; document.getElementById('preview').innerHTML=''; document.getElementById('statusHint').innerText=''; pendingFile=null; document.getElementById('statusFile').value='';
-    renderStatuses();
-  }catch(e){ alert('Upload failed, try smaller video/photo'); }
+  }catch(e){ alert('Upload failed, try smaller video (under 100MB)'); }
   btn.innerText='Post +'; btn.disabled=false;
 }
-function deleteStatus(i){ if(!confirm('Delete this status?')) return; statuses.splice(i,1); localStorage.setItem('mayor_status',JSON.stringify(statuses)); renderStatuses(); }
+function deleteStatus(time){ if(!confirm('Delete this status?')) return; socket.emit('deleteStatus', time); }
 function renderStatuses(){
-  document.getElementById('statusList').innerHTML=statuses.length?statuses.map((s,i)=>{
+  document.getElementById('statusList').innerHTML=statuses.length?statuses.map((s)=>{
     let mediaHtml='';
-    if(s.media){ if(s.mediaType==='video' || s.media.startsWith('data:video')) mediaHtml=`<video src="${s.media}" controls></video>`; else mediaHtml=`<img src="${s.media}">`; }
-    return `<div class="status-card"><button class="del-btn" onclick="deleteStatus(${i})">✕</button><b>💖 ${s.name}</b><p>${s.text||''}</p>${mediaHtml}<br><small>${s.time}</small></div>`;
+    if(s.media){ if(s.mediaType==='video') mediaHtml=`<video src="${s.media}" controls playsinline preload="metadata"></video>`; else if(s.media) mediaHtml=`<img src="${s.media}">`; }
+    return `<div class="status-card"><button class="del-btn" onclick="deleteStatus('${s.time}')">✕</button><b>💖 ${s.name}</b><p>${s.text||''}</p>${mediaHtml}<br><small>${s.time}</small></div>`;
   }).join(''):'<p>No status yet. Be the first to post! ✨</p>';
 }
 function toggleDark(){document.body.classList.toggle('dark');}
