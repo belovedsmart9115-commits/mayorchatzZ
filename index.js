@@ -11,6 +11,7 @@ const PORT = process.env.PORT || 3000;
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, 'uploads/'),
   filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname.replace(/\s/g,'_'))
@@ -23,8 +24,13 @@ app.post('/upload', upload.single('file'), (req, res) => {
   if (req.file.mimetype.startsWith('audio')) type = 'audio';
   res.json({ url: '/uploads/' + req.file.filename, type });
 });
-let users = {};
+
+// --- PERSISTENT STATUS ---
 let serverStatuses = [];
+try { if (fs.existsSync('statuses.json')) serverStatuses = JSON.parse(fs.readFileSync('statuses.json','utf8')||'[]'); } catch(e){ serverStatuses=[]; }
+function saveStatuses(){ try{ fs.writeFileSync('statuses.json', JSON.stringify(serverStatuses)); }catch(e){} }
+
+let users = {};
 io.on('connection', (socket) => {
   socket.on('join', (name) => {
     if (!name ||!name.trim()) return;
@@ -37,12 +43,16 @@ io.on('connection', (socket) => {
   });
   socket.on('typing', (d) => socket.broadcast.emit('typing', d));
   socket.on('newStatus', (s) => {
+    // Don't add duplicate - this stops replacing
+    if (serverStatuses.find(x => x.time===s.time && x.name===s.name)) return;
     serverStatuses.unshift(s);
     serverStatuses = serverStatuses.slice(0, 100);
+    saveStatuses();
     io.emit('statusNew', s);
   });
   socket.on('deleteStatus', (time) => {
     serverStatuses = serverStatuses.filter(s => s.time!== time);
+    saveStatuses();
     io.emit('statusList', serverStatuses);
   });
   socket.on('message', async (msg) => {
