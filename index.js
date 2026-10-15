@@ -24,19 +24,18 @@ app.post('/upload', upload.single('file'), (req, res) => {
   res.json({ url: '/uploads/' + req.file.filename, type });
 });
 let users = {};
-let serverStatuses = []; // {name,text,media,mediaType,time}
+let serverStatuses = [];
 io.on('connection', (socket) => {
   socket.on('join', (name) => {
     if (!name ||!name.trim()) return;
     if (Object.values(users).includes(name)) { socket.emit('joinError', 'That name don dey use, try another name'); return; }
     socket.username = name; users[socket.id] = name;
     socket.emit('joinSuccess');
-    socket.emit('statusList', serverStatuses); // send all statuses to new person
+    socket.emit('statusList', serverStatuses);
     io.emit('onlineUsers', Object.values(users));
     io.emit('userList', Object.values(users));
   });
   socket.on('typing', (d) => socket.broadcast.emit('typing', d));
-  // New status from phone -> save for server + send to everybody
   socket.on('newStatus', (s) => {
     serverStatuses.unshift(s);
     serverStatuses = serverStatuses.slice(0, 100);
