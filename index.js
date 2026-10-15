@@ -8,84 +8,96 @@ const fs = require('fs');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
+
 const PORT = process.env.PORT || 3000;
 
-if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
-app.use('/uploads', express.static('uploads'));
-
-// Serve from BOTH root and public - so it can NEVER be Not Found again
 app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.static(__dirname));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, 'uploads/'),
   filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname.replace(/\s/g,'_'))
 });
-const upload = multer({ storage });
-
-app.get('/', (req, res) => {
-  // Try public first, then root
-  let p1 = path.join(__dirname, 'public', 'index.html');
-  let p2 = path.join(__dirname, 'index.html');
-  if (fs.existsSync(p1)) return res.sendFile(p1);
-  if (fs.existsSync(p2)) return res.sendFile(p2);
-  return res.send('<h1>MayorChatZ is running but index.html not found</h1><p>Check GitHub - index.html must be in root or in public folder</p>');
-});
+const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 } });
 
 app.post('/upload', upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file' });
-  const isVideo = req.file.mimetype.startsWith('video');
-  res.json({ url: '/uploads/' + req.file.filename, type: isVideo? 'video' : 'image' });
+  let type = 'image';
+  if (req.file.mimetype.startsWith('video')) type = 'video';
+  if (req.file.mimetype.startsWith('audio')) type = 'audio';
+  res.json({ url: '/uploads/' + req.file.filename, type });
 });
 
 let users = {};
-let socketToName = {};
-
-async function getAssistantReply(text) {
-  let query = text.replace(/what is|who is|tell me about|explain/gi, '').trim();
-  if (!query) query = text;
-  try {
-    const r = await fetch('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(query));
-    const d = await r.json();
-    if (d.extract) return d.extract + (d.content_urls?.desktop?.page? '\n\nSource: ' + d.content_urls.desktop.page : '');
-    return "I no find that one for Wikipedia. Try another question.";
-  } catch (e) {
-    return "Sorry, I no fit reach Wikipedia now. Try again.";
-  }
-}
 
 io.on('connection', (socket) => {
   socket.on('join', (name) => {
-    name = (name || '').trim();
-    if (!name) return;
-    if (users[name] && users[name]!== socket.id) {
-      socket.emit('joinError', 'That name don dey use already. Choose another name.');
+    if (!name ||!name.trim()) return;
+    if (Object.values(users).includes(name)) {
+      socket.emit('joinError', 'That name don dey use, try another name');
       return;
     }
-    users[name] = socket.id;
-    socketToName[socket.id] = name;
-    socket.emit('joinSuccess', name);
-    io.emit('onlineUsers', Object.keys(users));
-    io.emit('userList', Object.keys(users));
+    socket.username = name;
+    users[socket.id] = name;
+    socket.emit('joinSuccess');
+    io.emit('onlineUsers', Object.values(users));
+    io.emit('userList', Object.values(users));
   });
-  socket.on('typing', (d) => { socket.broadcast.emit('typing', d); });
+
+  socket.on('typing', (d) => socket.broadcast.emit('typing', d));
+
   socket.on('message', async (msg) => {
-    msg.time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    let { from, to, text, type, url } = msg;
+
+    // Assistant
+    if (to === 'MayorChatZ Assistant') {
+      let q = (text || '').trim();
+      let lower = q.toLowerCase();
+
+      if (lower.includes('hello') || lower === 'hi' || lower === 'hey') {
+        io.emit('message', { from: 'MayorChatZ Assistant', to: from, text: 'Hello 💖! Ask me anything, e.g. Who is Wizkid? What is Nigeria?', type: 'text' });
+        return;
+      }
+      if (lower.includes('who are you')) {
+        io.emit('message', { from: 'MayorChatZ Assistant', to: from, text: 'I be MayorChatZ Assistant 🤖💖 — I fit answer questions using Wikipedia.', type: 'text' });
+        return;
+      }
+
+      let searchTerm = q.replace(/^(who is|what is|tell me about|what's|who's|explain)\s+/i, '').replace(/\?/g, '').trim() || q;
+
+      try {
+        let searchUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchTerm)}&format=json&origin=*`;
+        let searchRes = await fetch(searchUrl);
+        let searchData = await searchRes.json();
+
+        if (!searchData.query ||!searchData.query.search.length) {
+          io.emit('message', { from: 'MayorChatZ Assistant', to: from, text: `I no find "${q}" for Wikipedia. Try another word, e.g. "Wizkid", "Nigeria", "Football".`, type: 'text' });
+          return;
+        }
+        let bestTitle = searchData.query.search[0].title;
+        let sumRes = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(bestTitle)}`);
+        let sumData = await sumRes.json();
+        let answer = sumData.extract || searchData.query.search[0].snippet.replace(/<[^>]*>/g, '');
+        if (answer.length > 800) answer = answer.slice(0, 800) + '...';
+        io.emit('message', { from: 'MayorChatZ Assistant', to: from, text: `📚 ${bestTitle}\n\n${answer}\n\nSource: Wikipedia`, type: 'text' });
+      } catch (e) {
+        console.log('Assistant error:', e);
+        io.emit('message', { from: 'MayorChatZ Assistant', to: from, text: 'Network wahala, try again. Ask like: Who is Wizkid?', type: 'text' });
+      }
+      return;
+    }
+
+    // Normal / Group / Private chat
     io.emit('message', msg);
-    if (msg.to === 'MayorChatZ Assistant' && msg.from!== 'MayorChatZ Assistant') {
-      let replyText = await getAssistantReply(msg.text || 'Hello');
-      io.emit('message', { from: 'MayorChatZ Assistant', to: msg.from, text: replyText, type: 'text', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
-    }
   });
+
   socket.on('disconnect', () => {
-    let name = socketToName[socket.id];
-    if (name) {
-      delete users[name];
-      delete socketToName[socket.id];
-      io.emit('onlineUsers', Object.keys(users));
-      io.emit('userList', Object.keys(users));
-    }
+    delete users[socket.id];
+    io.emit('onlineUsers', Object.values(users));
+    io.emit('userList', Object.values(users));
   });
 });
 
-server.listen(PORT, () => console.log('MayorChatZ live on ' + PORT));
+server.listen(PORT, () => console.log('MayorChatZ running on ' + PORT));
