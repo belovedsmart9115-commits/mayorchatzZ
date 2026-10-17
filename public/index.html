@@ -91,23 +91,21 @@ socket.on('joinSuccess',()=>{document.getElementById('login').style.display='non
 socket.on('onlineUsers',l=>{document.getElementById('online').innerText='● '+l.length+' online'; users=l; renderSidebar();});
 socket.on('userList',l=>{users=l; renderSidebar();});
 socket.on('typing',d=>{if(d.from!==myName) document.getElementById('typing').innerText=d.from+' is typing...'; setTimeout(()=>document.getElementById('typing').innerText='',2000);});
-// FIXED STATUS LOGIC - never overwrite local with empty server list
 socket.on('statusList',list=>{
   if(!list ||!list.length){
-    // Server empty but phone get status -> send phone status back to server, don't clear
     if(statuses.length){ statuses.forEach(s=>{ if(!s.media ||!s.media.startsWith('data:')) socket.emit('newStatus',s); }); }
     return;
   }
-  // Merge server + local, remove duplicates by time+name
   let merged=[...list,...statuses];
   let seen=new Set(); let uniq=[];
-  merged.forEach(s=>{ let k=s.time+'|'+s.name; if(!seen.has(k)){ seen.add(k); uniq.push(s); } });
+  merged.forEach(s=>{ let k=s.id || (s.time+'|'+s.name); if(!seen.has(k)){ seen.add(k); uniq.push(s); } });
   statuses=uniq.slice(0,100);
   localStorage.setItem('mayor_status',JSON.stringify(statuses));
   renderStatuses();
 });
 socket.on('statusNew',s=>{
-  if(!statuses.find(x=>x.time===s.time && x.name===s.name)){
+  if(!s.id) s.id = Date.now()+'-'+Math.random().toString(36).slice(2,8);
+  if(!statuses.find(x=>x.id===s.id)){
     statuses.unshift(s); statuses=statuses.slice(0,100);
     localStorage.setItem('mayor_status',JSON.stringify(statuses)); renderStatuses();
   }
@@ -131,18 +129,18 @@ async function postStatus(){
   let media='', mediaType='';
   try{
     if(pendingFile){ let fd=new FormData(); fd.append('file',pendingFile); let r=await fetch('/upload',{method:'POST',body:fd}); let d=await r.json(); media=d.url; mediaType=d.type; }
-    let newStatus={name:myName,text:v,media:media,mediaType:mediaType,time:new Date().toLocaleString()};
+    let newStatus={id:Date.now()+'-'+Math.random().toString(36).slice(2,8),name:myName,text:v,media:media,mediaType:mediaType,time:new Date().toLocaleString()};
     socket.emit('newStatus', newStatus);
     document.getElementById('statusInput').value=''; document.getElementById('preview').innerHTML=''; document.getElementById('statusHint').innerText=''; pendingFile=null; document.getElementById('statusFile').value='';
   }catch(e){ alert('Upload failed, try smaller video (under 100MB)'); }
   btn.innerText='Post +'; btn.disabled=false;
 }
-function deleteStatus(time){ if(!confirm('Delete this status?')) return; statuses=statuses.filter(s=>s.time!==time); localStorage.setItem('mayor_status',JSON.stringify(statuses)); renderStatuses(); socket.emit('deleteStatus', time); }
+function deleteStatus(id){ if(!confirm('Delete this status?')) return; statuses=statuses.filter(s=>s.id!==id && s.time!==id); localStorage.setItem('mayor_status',JSON.stringify(statuses)); renderStatuses(); socket.emit('deleteStatus', id); }
 function renderStatuses(){
   document.getElementById('statusList').innerHTML=statuses.length?statuses.map((s)=>{
     let mediaHtml='';
     if(s.media){ if(s.mediaType==='video') mediaHtml=`<video src="${s.media}" controls playsinline preload="metadata"></video>`; else mediaHtml=`<img src="${s.media}">`; }
-    return `<div class="status-card"><button class="del-btn" onclick="deleteStatus('${s.time}')">✕</button><b>💖 ${s.name}</b><p>${s.text||''}</p>${mediaHtml}<br><small>${s.time}</small></div>`;
+    return `<div class="status-card"><button class="del-btn" onclick="deleteStatus('${s.id || s.time}')">✕</button><b>💖 ${s.name}</b><p>${s.text||''}</p>${mediaHtml}<br><small>${s.time}</small></div>`;
   }).join(''):'<p>No status yet. Be the first to post! ✨</p>';
 }
 function toggleDark(){document.body.classList.toggle('dark');}
