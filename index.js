@@ -31,33 +31,49 @@ function saveStatuses(){ try{ fs.writeFileSync('statuses.json', JSON.stringify(s
 
 let serverMessages = [];
 try { if (fs.existsSync('messages.json')) serverMessages = JSON.parse(fs.readFileSync('messages.json','utf8')||'[]'); } catch(e){ serverMessages=[]; }
-function saveMessages(){ try{ fs.writeFileSync('messages.json', JSON.stringify(serverMessages.slice(-500))); }catch(e){} }
+function saveMessages(){ try{ fs.writeFileSync('messages.json', JSON.stringify(serverMessages.slice(-1000))); }catch(e){} }
+
+let allUsers = [];
+try { if (fs.existsSync('allUsers.json')) allUsers = JSON.parse(fs.readFileSync('allUsers.json','utf8')||'[]'); } catch(e){ allUsers=[]; }
+function saveAllUsers(){ try{ fs.writeFileSync('allUsers.json', JSON.stringify(allUsers)); }catch(e){} }
 
 let users = {};
+let lastSeen = {};
+function presenceList(){ return allUsers.map(n => ({ name:n, online: Object.values(users).includes(n), lastSeen: lastSeen[n] || null })); }
+
 io.on('connection', (socket) => {
   socket.on('join', (name) => {
     if (!name ||!name.trim()) return;
     if (Object.values(users).includes(name)) { socket.emit('joinError', 'That name don dey use, try another name'); return; }
     socket.username = name; users[socket.id] = name;
+    if (!allUsers.includes(name)) { allUsers.push(name); saveAllUsers(); }
+    lastSeen[name] = Date.now();
     socket.emit('joinSuccess');
     socket.emit('statusList', serverStatuses);
     socket.emit('messageList', serverMessages);
+    socket.emit('allUsers', presenceList());
     io.emit('onlineUsers', Object.values(users));
     io.emit('userList', Object.values(users));
+    io.emit('allUsers', presenceList());
   });
   socket.on('typing', (d) => socket.broadcast.emit('typing', d));
   socket.on('newStatus', (s) => {
     if (!s.id) s.id = Date.now() + '-' + Math.random().toString(36).slice(2,8);
     if (serverStatuses.find(x => x.id===s.id)) return;
-    serverStatuses.unshift(s);
-    serverStatuses = serverStatuses.slice(0, 100);
-    saveStatuses();
+    serverStatuses.unshift(s); serverStatuses = serverStatuses.slice(0, 100); saveStatuses();
     io.emit('statusNew', s);
   });
   socket.on('deleteStatus', (id) => {
-    serverStatuses = serverStatuses.filter(s => s.id!== id && s.time!== id);
-    saveStatuses();
+    serverStatuses = serverStatuses.filter(s => s.id!== id && s.time!== id); saveStatuses();
     io.emit('statusList', serverStatuses);
+  });
+  socket.on('clearChat', (data) => {
+    let chat = data.chat, me = data.user;
+    // Clear for everybody for General Group, for private clear only that conversation
+    if (chat === 'General Group') serverMessages = serverMessages.filter(m => m.to !== 'General Group');
+    else serverMessages = serverMessages.filter(m => !((m.from===me && m.to===chat) || (m.from===chat && m.to===me)));
+    saveMessages();
+    io.emit('chatCleared', { chat, user: me });
   });
   socket.on('message', async (msg) => {
     let { from, to, text } = msg;
@@ -83,16 +99,20 @@ io.on('connection', (socket) => {
           }
         } catch (e) { replyText = 'Network wahala, try again.'; }
       }
-      serverMessages.push(msg); serverMessages = serverMessages.slice(-500); saveMessages();
+      serverMessages.push(msg); serverMessages = serverMessages.slice(-1000); saveMessages();
       let reply = { id: Date.now()+'-a-'+Math.random().toString(36).slice(2,8), from: 'MayorChatZ Assistant', to: from, text: replyText, type: 'text' };
-      serverMessages.push(reply); serverMessages = serverMessages.slice(-500); saveMessages();
-      io.emit('message', msg);
-      io.emit('message', reply);
-      return;
+      serverMessages.push(reply); serverMessages = serverMessages.slice(-1000); saveMessages();
+      io.emit('message', msg); io.emit('message', reply); return;
     }
-    if (!serverMessages.find(x => x.id===msg.id)) { serverMessages.push(msg); serverMessages = serverMessages.slice(-500); saveMessages(); }
+    if (!serverMessages.find(x => x.id===msg.id)) { serverMessages.push(msg); serverMessages = serverMessages.slice(-1000); saveMessages(); }
     io.emit('message', msg);
   });
-  socket.on('disconnect', () => { delete users[socket.id]; io.emit('onlineUsers', Object.values(users)); io.emit('userList', Object.values(users)); });
+  socket.on('disconnect', () => {
+    if (socket.username) lastSeen[socket.username] = Date.now();
+    delete users[socket.id];
+    io.emit('onlineUsers', Object.values(users));
+    io.emit('userList', Object.values(users));
+    io.emit('allUsers', presenceList());
+  });
 });
 server.listen(PORT, () => console.log('MayorChatZ running on ' + PORT));
