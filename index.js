@@ -25,7 +25,6 @@ app.post('/upload', upload.single('file'), (req, res) => {
   res.json({ url: '/uploads/' + req.file.filename, type });
 });
 
-// --- PERSISTENT STATUS ---
 let serverStatuses = [];
 try { if (fs.existsSync('statuses.json')) serverStatuses = JSON.parse(fs.readFileSync('statuses.json','utf8')||'[]'); } catch(e){ serverStatuses=[]; }
 function saveStatuses(){ try{ fs.writeFileSync('statuses.json', JSON.stringify(serverStatuses)); }catch(e){} }
@@ -43,15 +42,15 @@ io.on('connection', (socket) => {
   });
   socket.on('typing', (d) => socket.broadcast.emit('typing', d));
   socket.on('newStatus', (s) => {
-    // Don't add duplicate - this stops replacing
-    if (serverStatuses.find(x => x.time===s.time && x.name===s.name)) return;
+    if (!s.id) s.id = Date.now() + '-' + Math.random().toString(36).slice(2,8);
+    if (serverStatuses.find(x => x.id===s.id)) return;
     serverStatuses.unshift(s);
     serverStatuses = serverStatuses.slice(0, 100);
     saveStatuses();
     io.emit('statusNew', s);
   });
-  socket.on('deleteStatus', (time) => {
-    serverStatuses = serverStatuses.filter(s => s.time!== time);
+  socket.on('deleteStatus', (id) => {
+    serverStatuses = serverStatuses.filter(s => s.id!== id && s.time!== id);
     saveStatuses();
     io.emit('statusList', serverStatuses);
   });
