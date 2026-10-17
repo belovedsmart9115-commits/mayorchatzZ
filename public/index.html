@@ -88,10 +88,20 @@ body.dark #chatArea{background:#1a0a2e}body.dark #sidebar{background:#220b3d;col
 </div>
 </div>
 <script>
-const socket = io();
+const socket = io({ transports: ['polling','websocket'], reconnection: true, reconnectionAttempts: 20, reconnectionDelay: 1000, timeout: 20000 });
 let myName='', currentChat='MayorChatZ Assistant', users=[], allPeople=[], statuses=JSON.parse(localStorage.getItem('mayor_status')||'[]'), pendingFile=null;
 let chatHistory=JSON.parse(localStorage.getItem('mayor_chat_history')||'{}');
 let unread=JSON.parse(localStorage.getItem('mayor_unread')||'{}');
+let debugCount = 0;
+function updateLoginMsg(){
+  let m = document.getElementById('loginMsg'); if(!m) return;
+  if(socket.connected){ m.innerText = 'Connected ✓ Now tap Enter Chat'; m.style.color = '#16a34a'; }
+  else { debugCount++; m.innerText = 'Trying to connect... (' + debugCount + ')'; m.style.color = '#dc2626'; }
+}
+setInterval(updateLoginMsg, 2000);
+socket.on('connect', updateLoginMsg);
+socket.on('connect_error', function(e){ let m=document.getElementById('loginMsg'); if(m){ m.innerText='Socket error: '+(e.message||'cannot connect')+' - wait 1 min then refresh'; m.style.color='#dc2626'; } });
+socket.on('disconnect', function(){ let m=document.getElementById('loginMsg'); if(m){ m.innerText='Disconnected from server. Refresh page.'; m.style.color='#dc2626'; } });
 function getChatKey(m){ if(m.to==='General Group') return 'General Group'; if(m.from===myName) return m.to; return m.from; }
 function saveHistory(){ try{ localStorage.setItem('mayor_chat_history', JSON.stringify(chatHistory)); localStorage.setItem('mayor_unread', JSON.stringify(unread)); }catch(e){} }
 function storeMsg(m){ if(!m) return false; let k=getChatKey(m); if(!chatHistory[k]) chatHistory[k]=[]; if(m.id && chatHistory[k].find(x=>x.id===m.id)) return false; chatHistory[k].push(m); chatHistory[k]=chatHistory[k].slice(-500); saveHistory(); return true; }
@@ -109,8 +119,13 @@ function joinChat(){
   let n=inp.value.trim();
   if(!n){ msg.innerText='Enter your name first'; inp.focus(); return; }
   myName=n;
-  btn.innerText='Connecting... ⏳'; btn.disabled=true; msg.innerText='';
-  if(!socket.connected){ msg.innerText='Server never connect yet. Wait 10 seconds, refresh page, try again.'; btn.innerText='Enter Chat 🚀'; btn.disabled=false; socket.connect(); return; }
+  if(!socket.connected){
+    msg.innerText='Still connecting... wait for green Connected, then tap again. If e never connect after 1 min, refresh page.';
+    msg.style.color='#dc2626';
+    socket.connect();
+    return;
+  }
+  btn.innerText='Connecting... ⏳'; btn.disabled=true;
   if('Notification' in window && Notification.permission==='default') Notification.requestPermission();
   socket.emit('join', n);
   setTimeout(function(){ if(document.getElementById('login').style.display!=='none'){ btn.innerText='Enter Chat 🚀'; btn.disabled=false; } },5000);
@@ -118,8 +133,6 @@ function joinChat(){
 document.getElementById('enterBtn').addEventListener('click', joinChat);
 document.getElementById('nameInput').addEventListener('keypress', function(e){ if(e.key==='Enter') joinChat(); });
 document.getElementById('msgInput').addEventListener('keypress', function(e){ if(e.key==='Enter') sendMsg(); });
-socket.on('connect', function(){ let m=document.getElementById('loginMsg'); if(m){ m.innerText='Connected ✓ Now tap Enter Chat'; m.style.color='#16a34a'; } });
-socket.on('disconnect', function(){ let m=document.getElementById('loginMsg'); if(m){ m.innerText='Disconnected from server. Refresh page.'; m.style.color='#dc2626'; } });
 socket.on('joinError', function(m){ document.getElementById('loginMsg').innerText=m; let b=document.getElementById('enterBtn'); b.innerText='Enter Chat 🚀'; b.disabled=false; });
 socket.on('joinSuccess', function(){ document.getElementById('login').style.display='none'; document.getElementById('app').style.display='flex'; renderSidebar(); renderStatuses(); openChat('MayorChatZ Assistant'); });
 socket.on('onlineUsers', function(l){ document.getElementById('online').innerText='● '+l.length+' online'; users=l; renderSidebar(); updateChatSub(); });
@@ -147,7 +160,4 @@ function backToList(){ document.body.classList.remove('in-chat'); }
 function addMsg(m){ let isNew=storeMsg(m); let k=getChatKey(m); if(m.from===myName){ if(k===currentChat){ renderOneMsg(m); document.getElementById('messages').scrollTop=1000000; } return; } if(k===currentChat){ renderOneMsg(m); document.getElementById('messages').scrollTop=1000000; } else if(isNew){ unread[k]=(unread[k]||0)+1; saveHistory(); renderSidebar(); playBeep(); showToast(m.from, m.text||''); if('Notification' in window && Notification.permission==='granted' && document.hidden){ new Notification('MayorChatZ - '+m.from, {body:(m.text||'Sent a photo / voice').slice(0,80)}); } } }
 socket.on('message', addMsg);
 function sendMsg(){ let inp=document.getElementById('msgInput'); let t=inp.value.trim(); if(!t) return; let m={id:Date.now()+'-'+Math.random().toString(36).slice(2,8),from:myName,to:currentChat,text:t,type:'text'}; socket.emit('message',m); inp.value=''; inp.focus(); }
-document.getElementById('msgInput').addEventListener('input', function(){ socket.emit('typing',{from:myName}); });
-async function uploadFile(el){ let f=el.files[0]; if(!f) return; let fd=new FormData(); fd.append('file',f); let r=await fetch('/upload',{method:'POST',body:fd}); let d=await r.json(); socket.emit('message',{id:Date.now()+'-'+Math.random().toString(36).slice(2,8),from:myName,to:currentChat,url:d.url,type:d.type,text:''}); }
-let mediaRecorder=null,audioChunks=[];
-async function startVoice(){ try{ if(mediaRecorder && mediaRecorder.state==='recording'){ mediaRecorder.stop(); return; } let s=await navigator.mediaDevices.getUserMedia({audio:true}); mediaRecorder=new 
+document.getElementById('msgInput').addEventListener('input', function(){ socket.emit('typing',
