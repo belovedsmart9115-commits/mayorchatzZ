@@ -1,15 +1,11 @@
 {
   "name": "mayorchatz",
   "version": "1.0.0",
-  "description": "MayorChatZ - Real Time Chat with FREE AI",
   "main": "index.js",
-  "scripts": {
-    "start": "node index.js"
-  },
+  "scripts": { "start": "node index.js" },
   "dependencies": {
-    "cors": "^2.8.5",
     "express": "^4.18.2",
-    "multer": "^1.4.5-lts.1",
-    "socket.io": "^4.7.2"
+    "socket.io": "^4.7.5",
+    "multer": "^1.4.5-lts.1"
   }
 }
