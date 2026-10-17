@@ -29,6 +29,10 @@ let serverStatuses = [];
 try { if (fs.existsSync('statuses.json')) serverStatuses = JSON.parse(fs.readFileSync('statuses.json','utf8')||'[]'); } catch(e){ serverStatuses=[]; }
 function saveStatuses(){ try{ fs.writeFileSync('statuses.json', JSON.stringify(serverStatuses)); }catch(e){} }
 
+let serverMessages = [];
+try { if (fs.existsSync('messages.json')) serverMessages = JSON.parse(fs.readFileSync('messages.json','utf8')||'[]'); } catch(e){ serverMessages=[]; }
+function saveMessages(){ try{ fs.writeFileSync('messages.json', JSON.stringify(serverMessages.slice(-500))); }catch(e){} }
+
 let users = {};
 io.on('connection', (socket) => {
   socket.on('join', (name) => {
@@ -37,6 +41,7 @@ io.on('connection', (socket) => {
     socket.username = name; users[socket.id] = name;
     socket.emit('joinSuccess');
     socket.emit('statusList', serverStatuses);
+    socket.emit('messageList', serverMessages);
     io.emit('onlineUsers', Object.values(users));
     io.emit('userList', Object.values(users));
   });
@@ -56,24 +61,36 @@ io.on('connection', (socket) => {
   });
   socket.on('message', async (msg) => {
     let { from, to, text } = msg;
+    if (!msg.id) msg.id = Date.now() + '-' + Math.random().toString(36).slice(2,8);
     if (to === 'MayorChatZ Assistant') {
       let q = (text || '').trim(); let lower = q.toLowerCase();
-      if (lower.includes('hello') || lower === 'hi' || lower === 'hey') { io.emit('message', { from: 'MayorChatZ Assistant', to: from, text: 'Hello 💖! Ask me anything, e.g. Who is Wizkid? What is Nigeria?', type: 'text' }); return; }
-      if (lower.includes('who are you')) { io.emit('message', { from: 'MayorChatZ Assistant', to: from, text: 'I be MayorChatZ Assistant 🤖💖 — I fit answer questions using Wikipedia.', type: 'text' }); return; }
-      let searchTerm = q.replace(/^(who is|what is|tell me about|what's|who's|explain)\s+/i, '').replace(/\?/g, '').trim() || q;
-      try {
-        let searchRes = await fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchTerm)}&format=json&origin=*`);
-        let searchData = await searchRes.json();
-        if (!searchData.query ||!searchData.query.search.length) { io.emit('message', { from: 'MayorChatZ Assistant', to: from, text: `I no find "${q}" for Wikipedia. Try another word.`, type: 'text' }); return; }
-        let bestTitle = searchData.query.search[0].title;
-        let sumRes = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(bestTitle)}`);
-        let sumData = await sumRes.json();
-        let answer = sumData.extract || searchData.query.search[0].snippet.replace(/<[^>]*>/g, '');
-        if (answer.length > 800) answer = answer.slice(0, 800) + '...';
-        io.emit('message', { from: 'MayorChatZ Assistant', to: from, text: `📚 ${bestTitle}\n\n${answer}\n\nSource: Wikipedia`, type: 'text' });
-      } catch (e) { io.emit('message', { from: 'MayorChatZ Assistant', to: from, text: 'Network wahala, try again.', type: 'text' }); }
+      let replyText = '';
+      if (lower.includes('hello') || lower === 'hi' || lower === 'hey') { replyText = 'Hello 💖! Ask me anything, e.g. Who is Wizkid? What is Nigeria?'; }
+      else if (lower.includes('who are you')) { replyText = 'I be MayorChatZ Assistant 🤖💖 — I fit answer questions using Wikipedia.'; }
+      else {
+        let searchTerm = q.replace(/^(who is|what is|tell me about|what's|who's|explain)\s+/i, '').replace(/\?/g, '').trim() || q;
+        try {
+          let searchRes = await fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(searchTerm)}&format=json&origin=*`);
+          let searchData = await searchRes.json();
+          if (!searchData.query ||!searchData.query.search.length) { replyText = `I no find "${q}" for Wikipedia. Try another word.`; }
+          else {
+            let bestTitle = searchData.query.search[0].title;
+            let sumRes = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(bestTitle)}`);
+            let sumData = await sumRes.json();
+            let answer = sumData.extract || searchData.query.search[0].snippet.replace(/<[^>]*>/g, '');
+            if (answer.length > 800) answer = answer.slice(0, 800) + '...';
+            replyText = `📚 ${bestTitle}\n\n${answer}\n\nSource: Wikipedia`;
+          }
+        } catch (e) { replyText = 'Network wahala, try again.'; }
+      }
+      serverMessages.push(msg); serverMessages = serverMessages.slice(-500); saveMessages();
+      let reply = { id: Date.now()+'-a-'+Math.random().toString(36).slice(2,8), from: 'MayorChatZ Assistant', to: from, text: replyText, type: 'text' };
+      serverMessages.push(reply); serverMessages = serverMessages.slice(-500); saveMessages();
+      io.emit('message', msg);
+      io.emit('message', reply);
       return;
     }
+    if (!serverMessages.find(x => x.id===msg.id)) { serverMessages.push(msg); serverMessages = serverMessages.slice(-500); saveMessages(); }
     io.emit('message', msg);
   });
   socket.on('disconnect', () => { delete users[socket.id]; io.emit('onlineUsers', Object.values(users)); io.emit('userList', Object.values(users)); });
